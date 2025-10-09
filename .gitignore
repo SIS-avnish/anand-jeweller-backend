@@ -149,6 +149,7 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+temp_auto_push.bat
 
 # Cython debug symbols
 cython_debug/
@@ -160,7 +161,6 @@ cython_debug/
 .idea/
 
 # VS Code
-.vscode/
 *.code-workspace
 
 # Database files
@@ -293,7 +293,6 @@ pids
 .tern-port
 
 # Stores VSCode versions used for testing VSCode extensions
-.vscode-test
 
 # yarn v2
 .yarn/cache
@@ -303,3 +302,4 @@ pids
 .pnp.*
 *.history
 gold_rates.db
+temp_interactive_push.bat

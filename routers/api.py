@@ -75,8 +75,8 @@ async def get_latest_rates(db: Session = Depends(get_db)) -> Dict[str, Any]:
     
     # Return consolidated structure with all three purities
     return {
-        # "release_datetime": release_dt_ist.strftime("%Y-%m-%d %H:%M:%S %Z"),
-        "release_datetime": release_dt_ist.strftime("%Y-%m-%d"),
+        "release_datetime": release_dt_ist.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        # "release_datetime": release_dt_ist.strftime("%Y-%m-%d"),
         "created_at": created_at_ist.strftime("%Y-%m-%d %H:%M:%S %Z"),
         "gold_rates": {
             "24K": {
