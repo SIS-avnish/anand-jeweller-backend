@@ -78,6 +78,7 @@ async def get_latest_rates(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "release_datetime": release_dt_ist.strftime("%Y-%m-%d %H:%M:%S %Z"),
         # "release_datetime": release_dt_ist.strftime("%Y-%m-%d"),
         "created_at": created_at_ist.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        "conditions_apply": "*Conditions Apply",
         "gold_rates": {
             "24K": {
                 "selling_rate": float(latest_rate.gold_24k_new_rate),
