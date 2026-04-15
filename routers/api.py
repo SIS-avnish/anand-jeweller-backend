@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, or_
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, EmailStr, Field
@@ -598,9 +598,16 @@ class NotificationResponse(BaseModel):
         from_attributes = True
         arbitrary_types_allowed = True
 
-from pydantic import BaseModel, EmailStr, Field
+class GetProfileRequest(BaseModel):
+    user_id: int
 
-# 👇 YAHI ADD KAR (ContactEnquiryCreate ke upar ya niche)
+class UpdateProfileRequest(BaseModel):
+    user_id: int
+    name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    address: str = Field(..., min_length=5, max_length=300)
+    nearby_store: str = Field(..., min_length=2, max_length=200)
+
 
 class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
@@ -629,6 +636,16 @@ class CustomerUserResponse(BaseModel):
 class LoginResponse(BaseModel):
     message: str
     user: CustomerUserResponse
+
+class DeleteAccountRequest(BaseModel):
+    mobile_number: str = Field(..., min_length=10, max_length=15)
+    password: str = Field(..., min_length=6, max_length=100)
+
+class MessageResponse(BaseModel):
+    message: str
+
+class LogoutRequest(BaseModel):
+    login_id: str
 
 # Store Management APIs
 @router.get("/api/stores", response_model=List[StoreResponse])
@@ -1135,7 +1152,8 @@ async def register_user(payload: RegisterRequest, db: Session = Depends(get_db))
 @router.post("/auth/login", response_model=LoginResponse)
 async def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(CustomerUser).filter(
-        CustomerUser.mobile_number == payload.mobile_number
+        CustomerUser.mobile_number == payload.mobile_number,
+        CustomerUser.is_deleted == 0
     ).first()
 
     if not user:
@@ -1148,3 +1166,87 @@ async def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
         "message": "Login successful",
         "user": user
     }
+@router.post("/auth/delete_account", response_model=MessageResponse)
+async def delete_account(payload: DeleteAccountRequest, db: Session = Depends(get_db)):
+    user = db.query(CustomerUser).filter(
+        CustomerUser.mobile_number == payload.mobile_number,
+        CustomerUser.is_deleted == 0
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    user.is_deleted = 1
+    user.deleted_at = datetime.now()
+
+    db.commit()
+
+    return {"message": "Account deleted successfully"}
+
+@router.post("/auth/logout", response_model=MessageResponse)
+async def logout_user(payload: LogoutRequest, db: Session = Depends(get_db)):
+    user = db.query(CustomerUser).filter(
+        or_(
+            CustomerUser.mobile_number == payload.login_id,
+            CustomerUser.email == payload.login_id
+        )
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"message": f"Logout successful for {user.name}"}
+
+@router.post("/auth/profile", response_model=CustomerUserResponse)
+async def get_profile(payload: GetProfileRequest, db: Session = Depends(get_db)):
+    user = db.query(CustomerUser).filter(
+        CustomerUser.id == payload.user_id,
+        CustomerUser.is_deleted == 0
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
+
+@router.put("/auth/update-profile", response_model=CustomerUserResponse)
+async def update_profile(payload: UpdateProfileRequest, db: Session = Depends(get_db)):
+    user = db.query(CustomerUser).filter(
+        CustomerUser.id == payload.user_id,
+        CustomerUser.is_deleted == 0
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    store = db.query(Store).filter(Store.store_name == payload.nearby_store).first()
+    if not store:
+        available_stores = db.query(Store).all()
+        store_names = [s.store_name for s in available_stores]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid nearby store. Available stores: {', '.join(store_names)}"
+        )
+
+    existing_email = db.query(CustomerUser).filter(
+        CustomerUser.email == payload.email,
+        CustomerUser.id != user.id
+    ).first()
+
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user.name = payload.name
+    user.email = payload.email
+    user.address = payload.address
+    user.nearby_store = payload.nearby_store
+
+    # mobile number update nahi hoga
+    db.commit()
+    db.refresh(user)
+
+    return user
+
