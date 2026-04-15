@@ -215,4 +215,8 @@ class CustomerUser(Base):
     address = Column(String, nullable=False)
     nearby_store = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)
+
+    is_deleted = Column(Integer, nullable=False, default=0)
+    deleted_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=func.now(), nullable=False)
