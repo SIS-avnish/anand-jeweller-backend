@@ -7,9 +7,16 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import timedelta
 from sqlalchemy import asc
 from database import get_db
-from models import GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification
-
+from models import GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, CustomerUser
+from passlib.context import CryptContext
 router = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 # Latest rates for all purities
 # @router.get("/api/gold-rates/latest")
@@ -591,6 +598,38 @@ class NotificationResponse(BaseModel):
         from_attributes = True
         arbitrary_types_allowed = True
 
+from pydantic import BaseModel, EmailStr, Field
+
+# 👇 YAHI ADD KAR (ContactEnquiryCreate ke upar ya niche)
+
+class RegisterRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    mobile_number: str = Field(..., min_length=10, max_length=15)
+    email: EmailStr
+    address: str = Field(..., min_length=5, max_length=300)
+    nearby_store: str = Field(..., min_length=2, max_length=200)
+    password: str = Field(..., min_length=6, max_length=100)
+
+class LoginRequest(BaseModel):
+    mobile_number: str = Field(..., min_length=10, max_length=15)
+    password: str = Field(..., min_length=6, max_length=100)
+
+class CustomerUserResponse(BaseModel):
+    id: int
+    name: str
+    mobile_number: str
+    email: EmailStr
+    address: str
+    nearby_store: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class LoginResponse(BaseModel):
+    message: str
+    user: CustomerUserResponse
+
 # Store Management APIs
 @router.get("/api/stores", response_model=List[StoreResponse])
 async def get_all_stores(db: Session = Depends(get_db)):
@@ -1054,3 +1093,58 @@ async def api_documentation():
 async def health_check():
     """API health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@router.post("/auth/register", response_model=CustomerUserResponse)
+async def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
+    existing_mobile = db.query(CustomerUser).filter(
+        CustomerUser.mobile_number == payload.mobile_number
+    ).first()
+    if existing_mobile:
+        raise HTTPException(status_code=400, detail="Mobile number already registered")
+
+    existing_email = db.query(CustomerUser).filter(
+        CustomerUser.email == payload.email
+    ).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    store = db.query(Store).filter(Store.store_name == payload.nearby_store).first()
+    if not store:
+        available_stores = db.query(Store).all()
+        store_names = [s.store_name for s in available_stores]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid nearby store. Available stores: {', '.join(store_names)}"
+        )
+
+    new_user = CustomerUser(
+        name=payload.name,
+        mobile_number=payload.mobile_number,
+        email=payload.email,
+        address=payload.address,
+        nearby_store=payload.nearby_store,
+        password_hash=hash_password(payload.password)
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+@router.post("/auth/login", response_model=LoginResponse)
+async def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(CustomerUser).filter(
+        CustomerUser.mobile_number == payload.mobile_number
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid mobile number or password")
+
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid mobile number or password")
+
+    return {
+        "message": "Login successful",
+        "user": user
+    }

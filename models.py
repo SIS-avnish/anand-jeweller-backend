@@ -45,6 +45,8 @@ class GoldRate(Base):
     gold_18k_exchange_rate = Column(Float, nullable=False)  # 18K exchange price per gram
     gold_18k_making_charges = Column(Float, nullable=False, default=0.0)  # 18K making charges per gram
     
+    #conditions_apply = Column(String, nullable=False,default= 'T&C')
+
     release_datetime = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
@@ -202,3 +204,15 @@ class Notification(Base):
         return f"<Notification(title='{self.title}', datetime='{self.datetime}')>"
     
 
+
+class CustomerUser(Base):
+    __tablename__ = "customer_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    mobile_number = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    address = Column(String, nullable=False)
+    nearby_store = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
