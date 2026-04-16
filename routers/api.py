@@ -638,14 +638,19 @@ class LoginResponse(BaseModel):
     user: CustomerUserResponse
 
 class DeleteAccountRequest(BaseModel):
-    mobile_number: str = Field(..., min_length=10, max_length=15)
-    password: str = Field(..., min_length=6, max_length=100)
+    user_id: int
 
 class MessageResponse(BaseModel):
     message: str
+    user_id: Optional[int] = None
+    name: Optional[str] = None 
 
 class LogoutRequest(BaseModel):
     login_id: str
+
+class ForgotPasswordRequest(BaseModel):
+    mobile_number: str
+
 
 # Store Management APIs
 @router.get("/api/stores", response_model=List[StoreResponse])
@@ -1166,18 +1171,16 @@ async def login_user(payload: LoginRequest, db: Session = Depends(get_db)):
         "message": "Login successful",
         "user": user
     }
+
 @router.post("/auth/delete_account", response_model=MessageResponse)
 async def delete_account(payload: DeleteAccountRequest, db: Session = Depends(get_db)):
     user = db.query(CustomerUser).filter(
-        CustomerUser.mobile_number == payload.mobile_number,
+        CustomerUser.id == payload.user_id,
         CustomerUser.is_deleted == 0
     ).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid password")
 
     user.is_deleted = 1
     user.deleted_at = datetime.now()
@@ -1185,6 +1188,7 @@ async def delete_account(payload: DeleteAccountRequest, db: Session = Depends(ge
     db.commit()
 
     return {"message": "Account deleted successfully"}
+
 
 @router.post("/auth/logout", response_model=MessageResponse)
 async def logout_user(payload: LogoutRequest, db: Session = Depends(get_db)):
@@ -1250,3 +1254,19 @@ async def update_profile(payload: UpdateProfileRequest, db: Session = Depends(ge
 
     return user
 
+@router.post("/auth/forgot_password", response_model=MessageResponse)
+async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(CustomerUser).filter(
+        CustomerUser.mobile_number == payload.mobile_number,
+        CustomerUser.is_deleted == 0
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="You are not registered, please register first")
+
+    return {
+        "message": "User found",
+        "user_id": user.id,
+        "name": user.name
+
+    }
