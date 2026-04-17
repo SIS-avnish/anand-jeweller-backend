@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, or_
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import timedelta
 from sqlalchemy import asc
 from database import get_db
@@ -604,30 +604,43 @@ class GetProfileRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     user_id: int
     name: str = Field(..., min_length=2, max_length=100)
-    email: EmailStr
-    address: str = Field(..., min_length=5, max_length=300)
-    nearby_store: str = Field(..., min_length=2, max_length=200)
+    email: Optional[EmailStr] = None
+    address: Optional[str] = Field(None, max_length=300)
+    nearby_store: Optional[str] = Field(None, max_length=200)
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_email_to_none(cls, v):
+        if v == "" or v == " ":
+            return None
+        return v
 
 
 class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     mobile_number: str = Field(..., min_length=10, max_length=15)
-    email: EmailStr
-    address: str = Field(..., min_length=5, max_length=300)
-    nearby_store: str = Field(..., min_length=2, max_length=200)
+    email: Optional[EmailStr] = None          # ✅ optional karo
+    address: Optional[str] = Field(None, max_length=300)   # ✅ optional karo
+    nearby_store: Optional[str] = Field(None, max_length=200)  # ✅ optional karo
     password: str = Field(..., min_length=6, max_length=100)
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_email_to_none(cls, v):
+        if v == "" or v == " ":
+            return None
+        return v
 
 class LoginRequest(BaseModel):
     mobile_number: str = Field(..., min_length=10, max_length=15)
     password: str = Field(..., min_length=6, max_length=100)
-
+    
 class CustomerUserResponse(BaseModel):
     id: int
     name: str
     mobile_number: str
-    email: EmailStr
-    address: str
-    nearby_store: str
+    email: Optional[EmailStr] = None    # ✅
+    address: Optional[str] = None       # ✅
+    nearby_store: Optional[str] = None  # ✅
     created_at: datetime
 
     class Config:
@@ -1124,20 +1137,13 @@ async def register_user(payload: RegisterRequest, db: Session = Depends(get_db))
     if existing_mobile:
         raise HTTPException(status_code=400, detail="Mobile number already registered")
 
-    existing_email = db.query(CustomerUser).filter(
-        CustomerUser.email == payload.email
-    ).first()
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    store = db.query(Store).filter(Store.store_name == payload.nearby_store).first()
-    if not store:
-        available_stores = db.query(Store).all()
-        store_names = [s.store_name for s in available_stores]
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid nearby store. Available stores: {', '.join(store_names)}"
-        )
+    # Email check sirf tab karo jab email diya ho
+    if payload.email:
+        existing_email = db.query(CustomerUser).filter(
+            CustomerUser.email == payload.email
+        ).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
     new_user = CustomerUser(
         name=payload.name,
@@ -1226,29 +1232,31 @@ async def update_profile(payload: UpdateProfileRequest, db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    store = db.query(Store).filter(Store.store_name == payload.nearby_store).first()
-    if not store:
-        available_stores = db.query(Store).all()
-        store_names = [s.store_name for s in available_stores]
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid nearby store. Available stores: {', '.join(store_names)}"
-        )
+    # Nearby store sirf tab validate karo jab value di ho
+    if payload.nearby_store:
+        store = db.query(Store).filter(Store.store_name == payload.nearby_store).first()
+        if not store:
+            available_stores = db.query(Store).all()
+            store_names = [s.store_name for s in available_stores]
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid nearby store. Available stores: {', '.join(store_names)}"
+            )
 
-    existing_email = db.query(CustomerUser).filter(
-        CustomerUser.email == payload.email,
-        CustomerUser.id != user.id
-    ).first()
-
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Email sirf tab validate karo jab value di ho
+    if payload.email:
+        existing_email = db.query(CustomerUser).filter(
+            CustomerUser.email == payload.email,
+            CustomerUser.id != user.id
+        ).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
     user.name = payload.name
     user.email = payload.email
     user.address = payload.address
     user.nearby_store = payload.nearby_store
 
-    # mobile number update nahi hoga
     db.commit()
     db.refresh(user)
 

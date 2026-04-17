@@ -3,6 +3,18 @@
 {% block title %}Dashboard - Gold Rate Management System{% endblock %}
 
 {% block content %}
+<style>
+    .single-card {
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+/* jab sirf ek hi card ho */
+.row:has(.single-card:only-child) .single-card {
+    width: 100%;
+}
+</style>
 <!-- Modern Welcome Header -->
 <div class="welcome-card my-2">
     <div class="row align-items-center">
@@ -159,18 +171,18 @@
                     <a href="/admin/terms" class="btn btn-outline-info btn-sm">
                         <i class="bi bi-file-text me-1"></i>Terms
                     </a>
-                    <a href="/admin/notifications" class="btn btn-outline-danger btn-sm">
+                    <!-- <a href="/admin/notifications" class="btn btn-outline-danger btn-sm">
                         <i class="bi bi-bell me-1"></i>Notifications
-                    </a>
+                    </a> -->
                 </div>
             </div>
         </div>
     </div>
     
     <div class="p-0">
-        <div class="row g-0">
+        <div class="row g-0 justify-content-center">
             <div class="col-lg-6 col-md-6">
-                <div class="border-end p-4 text-center">
+                <div class="p-4 text-center single-card">
                     <div class="mb-3">
                         <i class="bi bi-file-text" style="font-size: 2rem; color: var(--info);"></i>
                     </div>
@@ -182,7 +194,8 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-6 col-md-6">
+
+            <!-- <div class="col-lg-6 col-md-6">
                 <div class="p-4 text-center">
                     <div class="mb-3">
                         <i class="bi bi-bell" style="font-size: 2rem; color: var(--danger);"></i>
@@ -194,7 +207,7 @@
                         <a href="/admin/notifications/add" class="btn btn-sm btn-danger">Add New</a>
                     </div>
                 </div>
-            </div>
+            </div> -->
         </div>
     </div>
 </div>

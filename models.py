@@ -209,14 +209,15 @@ class CustomerUser(Base):
     __tablename__ = "customer_users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=True)
     mobile_number = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    address = Column(String, nullable=False)
-    nearby_store = Column(String, nullable=False)
+    email = Column(String, nullable=True, index=True)
+    address = Column(String, nullable=True)
+    nearby_store = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
 
     is_deleted = Column(Integer, nullable=False, default=0)
     deleted_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=func.now(), nullable=False)
+
