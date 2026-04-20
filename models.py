@@ -203,8 +203,7 @@ class Notification(Base):
     def __repr__(self):
         return f"<Notification(title='{self.title}', datetime='{self.datetime}')>"
     
-
-
+#coloumn other than  name and mobile number is there for future use 
 class CustomerUser(Base):
     __tablename__ = "customer_users"
 
