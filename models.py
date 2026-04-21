@@ -204,7 +204,7 @@ class Notification(Base):
         return f"<Notification(title='{self.title}', datetime='{self.datetime}')>"
     
 
-
+# this extra feild like  email, address and nearby store is here for the future use
 class CustomerUser(Base):
     __tablename__ = "customer_users"
 
