@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Registered Users - Anand Jewels{% endblock %}
+
+{% block content %}
+
+<div class="table-card mb-5">
+    <div class="table-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="table-title">
+                    <i class="bi bi-people me-2" style="color: var(--primary);"></i>
+                    Registered Users
+                </h5>
+                <small class="table-subtitle">All registered app users</small>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="/admin" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-0">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Mobile Number</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Nearby Store</th>
+                        <th>Registered On</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in users %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.mobile_number }}</td>
+                        <td>
+                            {% if item.email %}
+                                {{ item.email }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.address %}
+                                {{ item.address }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.nearby_store %}
+                                {{ item.nearby_store }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.created_at %}
+                                {{ item.created_at.strftime('%d %b %Y %H:%M') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-people"></i>
+            <h6>No Registered Users</h6>
+            <p>No user has registered yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

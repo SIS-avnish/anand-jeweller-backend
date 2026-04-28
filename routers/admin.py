@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 
 from database import get_db
-from models import AdminUser, GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, UserRole
+from models import AdminUser, GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, UserRole, CustomerUser
 from auth import authenticate_user, login_user, logout_user, get_current_user, is_authenticated, require_super_admin, require_contact_access, is_super_admin
 from jwt_auth import require_admin_auth
 
@@ -130,6 +130,9 @@ async def admin_dashboard(
     total_achievements = db.query(Achievement).count()
     total_notifications = db.query(Notification).count()
     latest_rate = db.query(GoldRate).order_by(desc(GoldRate.release_datetime)).first()
+    total_registered_users = db.query(CustomerUser).filter(
+    CustomerUser.is_deleted == 0
+    ).count()
     
     # Get JWT token from session for frontend use
     jwt_token = request.session.get("jwt_token", "")
@@ -149,6 +152,7 @@ async def admin_dashboard(
         "total_awards": total_awards,
         "total_achievements": total_achievements,
         "total_notifications": total_notifications,
+        "total_registered_users": total_registered_users,
         "latest_rate": latest_rate,
         "jwt_token": jwt_token
     })
@@ -1889,3 +1893,25 @@ async def export_contact_enquiries_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+# Registered Users Management
+@router.get("/admin/users", response_class=HTMLResponse)
+async def list_registered_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth)
+):
+    users = db.query(CustomerUser).filter(
+        CustomerUser.is_deleted == 0
+    ).order_by(desc(CustomerUser.created_at)).all()
+
+    jwt_token = request.session.get("jwt_token", "")
+
+    return templates.TemplateResponse("users/list.html", {
+        "request": request,
+        "user": current_user,
+        "user_role": current_user.role,
+        "users": users,
+        "page_title": "Registered Users",
+        "jwt_token": jwt_token
+    })

@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-    .single-card {
+.single-card {
     border-radius: 12px;
     background: #fff;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
@@ -15,13 +15,13 @@
     width: 100%;
 }
 </style>
+
 <!-- Modern Welcome Header -->
 <div class="welcome-card my-2">
     <div class="row align-items-center">
         <div class="col-lg-8 col-md-7 mb-3 mb-md-0">
             <div class="d-flex align-items-center mb-2">
                 <div class="me-3">
-                    <!-- <i class="bi bi-gem" style="font-size: 2.5rem; color: var(--secondary);"></i> -->
                     <img src="/static/images/logo.png" alt="Anand Jewels Logo" style="height: 50px;">
                 </div>
                 <div>
@@ -78,7 +78,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-4 col-md-6">
         <div class="table-card">
             <div class="table-header text-center">
@@ -109,7 +109,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-4 col-md-12">
         <div class="table-card">
             <div class="table-header text-center">
@@ -140,6 +140,7 @@
             </div>
         </div>
     </div>
+
     {% else %}
     <div class="col-12">
         <div class="table-card">
@@ -171,16 +172,17 @@
                     <a href="/admin/terms" class="btn btn-outline-info btn-sm">
                         <i class="bi bi-file-text me-1"></i>Terms
                     </a>
-                    <!-- <a href="/admin/notifications" class="btn btn-outline-danger btn-sm">
-                        <i class="bi bi-bell me-1"></i>Notifications
-                    </a> -->
+                    <a href="/admin/users" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-people me-1"></i>Users
+                    </a>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="p-0">
         <div class="row g-0 justify-content-center">
+
             <div class="col-lg-6 col-md-6">
                 <div class="p-4 text-center single-card">
                     <div class="mb-3">
@@ -195,23 +197,23 @@
                 </div>
             </div>
 
-            <!-- <div class="col-lg-6 col-md-6">
-                <div class="p-4 text-center">
+            <div class="col-lg-6 col-md-6">
+                <div class="p-4 text-center single-card">
                     <div class="mb-3">
-                        <i class="bi bi-bell" style="font-size: 2rem; color: var(--danger);"></i>
+                        <i class="bi bi-people" style="font-size: 2rem; color: var(--primary);"></i>
                     </div>
-                    <h6 class="fw-bold">Notifications</h6>
-                    <div class="h4 mb-2">{{ total_notifications|default(0) }}</div>
+                    <h6 class="fw-bold">Registered Users</h6>
+                    <div class="h4 mb-2">{{ total_registered_users|default(0) }}</div>
                     <div class="d-grid gap-2">
-                        <a href="/admin/notifications" class="btn btn-sm btn-outline-danger">Manage</a>
-                        <a href="/admin/notifications/add" class="btn btn-sm btn-danger">Add New</a>
+                        <a href="/admin/users" class="btn btn-sm btn-outline-primary">Manage</a>
+                        <a href="/admin/users" class="btn btn-sm btn-primary">View Users</a>
                     </div>
                 </div>
-            </div> -->
+            </div>
+
         </div>
     </div>
 </div>
-
 
 <!-- Modern Recent Gold Rates Section -->
 <div class="table-card mb-5">
@@ -235,7 +237,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="p-0">
         {% if latest_rate %}
         <div class="table-responsive">
@@ -259,8 +261,8 @@
                         <th class="text-center">Making</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    <!-- 24K Gold Row -->
                     <tr>
                         <td>
                             <div class="d-flex align-items-center">
@@ -284,7 +286,8 @@
                             <div class="fw-semibold" style="color: var(--warning);">₹{{ latest_rate.gold_24k_making_charges|round(2) }}</div>
                         </td>
                         <td class="d-none d-lg-table-cell text-center" rowspan="3">
-                            <div class="update-time">{{ latest_rate.release_datetime.strftime('%b %d') }}
+                            <div class="update-time">
+                                {{ latest_rate.release_datetime.strftime('%b %d') }}
                                 <small>{{ latest_rate.release_datetime.strftime('%H:%M') }}</small>
                             </div>
                         </td>
@@ -299,8 +302,7 @@
                             </div>
                         </td>
                     </tr>
-                    
-                    <!-- 22K Gold Row -->
+
                     <tr>
                         <td>
                             <div class="d-flex align-items-center">
@@ -324,8 +326,7 @@
                             <div class="fw-semibold" style="color: var(--warning);">₹{{ latest_rate.gold_22k_making_charges|round(2) }}</div>
                         </td>
                     </tr>
-                    
-                    <!-- 18K Gold Row -->
+
                     <tr style="border-bottom: 2px solid var(--gray-200);">
                         <td>
                             <div class="d-flex align-items-center">
@@ -352,6 +353,7 @@
                 </tbody>
             </table>
         </div>
+
         {% else %}
         <div class="empty-state">
             <i class="bi bi-inbox"></i>
@@ -365,16 +367,11 @@
     </div>
 </div>
 
-
-
-<!-- Today's Gold Rates Summary -->
-
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Update current time
     function updateTime() {
         const now = new Date();
         const timeString = now.toLocaleString('en-US', {
@@ -385,34 +382,37 @@ document.addEventListener('DOMContentLoaded', function() {
             hour: '2-digit',
             minute: '2-digit'
         });
+
         const timeElement = document.getElementById('current-time');
+
         if (timeElement) {
             timeElement.textContent = timeString;
         }
     }
-    
-    updateTime();
-    setInterval(updateTime, 60000); // Update every minute
 
-    // Animate counters
+    updateTime();
+    setInterval(updateTime, 60000);
+
     function animateCounter(element) {
         const target = parseInt(element.getAttribute('data-target'));
         const duration = 2000;
         const increment = target / (duration / 16);
         let current = 0;
-        
+
         const timer = setInterval(() => {
             current += increment;
+
             if (current >= target) {
                 current = target;
                 clearInterval(timer);
             }
+
             element.textContent = Math.floor(current);
         }, 16);
     }
 
-    // Start counter animations when cards come into view
     const counters = document.querySelectorAll('.counter');
+
     const observerOptions = {
         threshold: 0.5,
         rootMargin: '0px 0px -50px 0px'
@@ -431,45 +431,42 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(counter);
     });
 
-    // Gold rate highlight animation
     document.querySelectorAll('.current-rate').forEach((rate, index) => {
         rate.style.animationDelay = `${index * 0.2}s`;
         rate.classList.add('animate-pulse');
     });
 
-    // Add stagger animation to cards
     document.querySelectorAll('.stats-card, .action-card, .table-card').forEach((card, index) => {
         card.style.animationDelay = `${index * 0.1}s`;
     });
 
-    // JWT-enabled admin dashboard functionality
     async function refreshStats() {
         if (!window.jwtToken) return;
-        
+
         try {
             const response = await window.apiCall('/api/admin/statistics');
+
             if (response.ok) {
                 const data = await response.json();
-                
-                // Update statistics on dashboard
+
                 const totalRatesElement = document.querySelector('[data-target]');
+
                 if (totalRatesElement && data.total_rates) {
                     totalRatesElement.textContent = data.total_rates;
                 }
-                
+
                 console.log('Statistics refreshed via JWT API:', data);
             }
         } catch (error) {
             console.error('Failed to refresh statistics:', error);
         }
     }
-    
-    // Auto-refresh stats every 5 minutes if JWT token is available
+
     if (window.jwtToken) {
         setInterval(refreshStats, 5 * 60 * 1000);
-        
-        // Add refresh button functionality
+
         const refreshButton = document.getElementById('refresh-stats');
+
         if (refreshButton) {
             refreshButton.addEventListener('click', refreshStats);
         }

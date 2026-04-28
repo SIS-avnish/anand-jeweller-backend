@@ -1129,6 +1129,19 @@ async def health_check():
     """API health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+@router.get("/api/statistics")
+async def get_statistics(db: Session = Depends(get_db)):
+    total_registered_users = db.query(CustomerUser).filter(
+        CustomerUser.is_deleted == 0
+    ).count()
+
+    total_terms = db.query(Terms).count()
+
+    return {
+        "total_registered_users": total_registered_users,
+        "total_terms": total_terms
+    }
+
 @router.post("/auth/register", response_model=CustomerUserResponse)
 async def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
     existing_mobile = db.query(CustomerUser).filter(
