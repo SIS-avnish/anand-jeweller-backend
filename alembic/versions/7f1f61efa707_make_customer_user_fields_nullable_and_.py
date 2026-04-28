@@ -87,3 +87,4 @@ def downgrade():
     op.create_index('ix_customer_users_id', 'customer_users', ['id'], unique=False)
     op.create_index('ix_customer_users_mobile_number', 'customer_users', ['mobile_number'], unique=False)
     op.create_index('ix_customer_users_email', 'customer_users', ['email'], unique=False)
+    

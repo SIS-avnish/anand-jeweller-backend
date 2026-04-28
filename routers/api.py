@@ -615,7 +615,7 @@ class UpdateProfileRequest(BaseModel):
             return None
         return v
 
-
+# this extra feild like  email, address and nearby store is here for the future use 
 class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     mobile_number: str = Field(..., min_length=10, max_length=15)
