@@ -83,6 +83,11 @@
                         <i class="bi bi-envelope"></i> Contact Enquiries
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'users' in request.url.path %}active{% endif %}" href="/admin/users">
+                        <i class="bi bi-people"></i> Registered Users
+                    </a>
+                </li>
                 {% if user_role == 'super_admin' %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'terms' in request.url.path %}active{% endif %}" href="/admin/terms">

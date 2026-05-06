@@ -5,27 +5,103 @@
 {% block content %}
 
 <div class="table-card mb-5">
+
     <div class="table-header">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h5 class="table-title">
+
+        <div class="row align-items-center mb-3">
+
+            <div class="col-md-6">
+                <h5 class="table-title mb-1">
                     <i class="bi bi-people me-2" style="color: var(--primary);"></i>
                     Registered Users
                 </h5>
-                <small class="table-subtitle">All registered app users</small>
+
+                <small class="table-subtitle">
+                    All registered app users
+                </small>
             </div>
-            <div class="col-md-4 text-md-end">
-                <a href="/admin" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+
+                <a href="/admin/users/download?search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}"
+                   class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-excel me-1"></i>
+                    Download Excel
                 </a>
+
+                <a href="/admin"
+                   class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Back to Dashboard
+                </a>
+
             </div>
+
         </div>
+
+        <!-- FILTER FORM -->
+        <form method="get" action="/admin/users" id="filterForm">
+
+            <div class="row g-2">
+
+                <!-- SEARCH -->
+                <div class="col-md-3">
+                    <input type="text"
+                           name="search"
+                           value="{{ search }}"
+                           class="form-control"
+                           placeholder="Search name, email, mobile">
+                </div>
+
+                <!-- FROM DATE -->
+                <div class="col-md-2">
+                    <input type="date"
+                           name="from_date"
+                           value="{{ from_date }}"
+                           class="form-control"
+                           onchange="document.querySelector('input[name=to_date]').min=this.value">
+                </div>
+
+                <!-- TO DATE -->
+                <div class="col-md-2">
+                    <input type="date"
+                           name="to_date"
+                           value="{{ to_date }}"
+                           class="form-control">
+                </div>
+
+                <!-- SEARCH BTN -->
+                <div class="col-md-2">
+                    <button type="submit"
+                            class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>
+                        Search
+                    </button>
+                </div>
+
+                <!-- RESET BTN -->
+                <div class="col-md-2">
+                    <a href="/admin/users"
+                       class="btn btn-secondary w-100">
+                        Reset
+                    </a>
+                </div>
+
+            </div>
+
+        </form>
+
     </div>
 
+    <!-- TABLE -->
     <div class="p-0">
+
         {% if users %}
+
         <div class="table-responsive">
+
             <table class="table mb-0">
+
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -39,11 +115,17 @@
                 </thead>
 
                 <tbody>
+
                     {% for item in users %}
+
                     <tr>
+
                         <td>{{ item.id }}</td>
+
                         <td>{{ item.name }}</td>
+
                         <td>{{ item.mobile_number }}</td>
+
                         <td>
                             {% if item.email %}
                                 {{ item.email }}
@@ -51,6 +133,7 @@
                                 -
                             {% endif %}
                         </td>
+
                         <td>
                             {% if item.address %}
                                 {{ item.address }}
@@ -58,6 +141,7 @@
                                 -
                             {% endif %}
                         </td>
+
                         <td>
                             {% if item.nearby_store %}
                                 {{ item.nearby_store }}
@@ -65,26 +149,136 @@
                                 -
                             {% endif %}
                         </td>
+
                         <td>
                             {% if item.created_at %}
-                                {{ item.created_at.strftime('%d %b %Y %H:%M') }}
+                                {{ (item.created_at + timedelta(hours=5, minutes=30)).strftime('%d %b %Y %I:%M %p') }}
                             {% else %}
                                 -
                             {% endif %}
                         </td>
+
                     </tr>
+
                     {% endfor %}
+
                 </tbody>
+
             </table>
+
         </div>
+
+        <!-- PAGINATION -->
+        <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+            <div>
+                <strong>
+                    Page {{ page }} of {{ total_pages }}
+                </strong>
+            </div>
+
+            <nav>
+
+                <ul class="pagination mb-0">
+
+                    {% if page > 1 %}
+
+                    <li class="page-item">
+
+                        <a class="page-link"
+                           href="/admin/users?page={{ page - 1 }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                            Previous
+                        </a>
+
+                    </li>
+
+                    {% endif %}
+
+                    {% for p in range(1, total_pages + 1) %}
+
+                    <li class="page-item {% if p == page %}active{% endif %}">
+
+                        <a class="page-link"
+                           href="/admin/users?page={{ p }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                            {{ p }}
+                        </a>
+
+                    </li>
+
+                    {% endfor %}
+
+                    {% if page < total_pages %}
+
+                    <li class="page-item">
+
+                        <a class="page-link"
+                           href="/admin/users?page={{ page + 1 }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                            Next
+                        </a>
+
+                    </li>
+
+                    {% endif %}
+
+                </ul>
+
+            </nav>
+
+        </div>
+
         {% else %}
-        <div class="empty-state">
-            <i class="bi bi-people"></i>
-            <h6>No Registered Users</h6>
-            <p>No user has registered yet.</p>
+
+        <!-- EMPTY -->
+        <div class="empty-state text-center p-5">
+
+            <i class="bi bi-people"
+               style="font-size:50px;"></i>
+
+            <h6 class="mt-3">
+                No Registered Users
+            </h6>
+
+            <p>
+                No users found for selected filters.
+            </p>
+
         </div>
+
         {% endif %}
+
     </div>
+
 </div>
+
+<!-- DATE VALIDATION -->
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("filterForm");
+
+    const fromDate = document.querySelector('input[name="from_date"]');
+
+    const toDate = document.querySelector('input[name="to_date"]');
+
+    form.addEventListener("submit", function (e) {
+
+        if (fromDate.value && toDate.value) {
+
+            if (toDate.value < fromDate.value) {
+
+                e.preventDefault();
+
+                alert("End Date should be greater than or equal to Start Date");
+
+                return false;
+            }
+        }
+
+    });
+
+});
+
+</script>
 
 {% endblock %}

@@ -13,6 +13,13 @@ from database import get_db
 from models import AdminUser, GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, UserRole, CustomerUser
 from auth import authenticate_user, login_user, logout_user, get_current_user, is_authenticated, require_super_admin, require_contact_access, is_super_admin
 from jwt_auth import require_admin_auth
+from fastapi import Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
+from io import BytesIO
+import pandas as pd
+import math
+from datetime import timedelta
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -1898,12 +1905,42 @@ async def export_contact_enquiries_csv(
 @router.get("/admin/users", response_class=HTMLResponse)
 async def list_registered_users(
     request: Request,
+    page: int = Query(1),
+    search: str = Query(""),
+    from_date: str = Query(""),
+    to_date: str = Query(""),
     db: Session = Depends(get_db),
     current_user: AdminUser = Depends(require_admin_auth)
 ):
-    users = db.query(CustomerUser).filter(
-        CustomerUser.is_deleted == 0
-    ).order_by(desc(CustomerUser.created_at)).all()
+    limit = 10
+    offset = (page - 1) * limit
+
+    query = db.query(CustomerUser).filter(CustomerUser.is_deleted == 0)
+
+    if search:
+        query = query.filter(
+            or_(
+                CustomerUser.name.ilike(f"%{search}%"),
+                CustomerUser.mobile_number.ilike(f"%{search}%"),
+                CustomerUser.email.ilike(f"%{search}%"),
+                CustomerUser.address.ilike(f"%{search}%"),
+                CustomerUser.nearby_store.ilike(f"%{search}%")
+            )
+        )
+
+    if from_date:
+        from_datetime = datetime.strptime(from_date, "%Y-%m-%d")
+        query = query.filter(CustomerUser.created_at >= from_datetime)
+
+    if to_date:
+        to_datetime = datetime.strptime(to_date, "%Y-%m-%d")
+        to_datetime = to_datetime.replace(hour=23, minute=59, second=59)
+        query = query.filter(CustomerUser.created_at <= to_datetime)
+
+    total_users = query.count()
+    total_pages = math.ceil(total_users / limit) if total_users > 0 else 1
+
+    users = query.order_by(desc(CustomerUser.created_at)).offset(offset).limit(limit).all()
 
     jwt_token = request.session.get("jwt_token", "")
 
@@ -1912,6 +1949,114 @@ async def list_registered_users(
         "user": current_user,
         "user_role": current_user.role,
         "users": users,
+        "page": page,
+        "total_pages": total_pages,
+        "search": search,
+        "from_date": from_date,
+        "to_date": to_date,
         "page_title": "Registered Users",
-        "jwt_token": jwt_token
+        "jwt_token": jwt_token,
+        "timedelta": timedelta
     })
+    query = db.query(CustomerUser).filter(CustomerUser.is_deleted == 0)
+
+    if search:
+        query = query.filter(
+            or_(
+                CustomerUser.name.ilike(f"%{search}%"),
+                CustomerUser.mobile_number.ilike(f"%{search}%"),
+                CustomerUser.email.ilike(f"%{search}%"),
+                CustomerUser.address.ilike(f"%{search}%"),
+                CustomerUser.nearby_store.ilike(f"%{search}%")
+            )
+        )
+
+    users = query.order_by(desc(CustomerUser.created_at)).all()
+
+    data = []
+    for item in users:
+        data.append({
+            "ID": item.id,
+            "Name": item.name,
+            "Mobile Number": item.mobile_number,
+            "Email": item.email if item.email else "-",
+            "Address": item.address if item.address else "-",
+            "Nearby Store": item.nearby_store if item.nearby_store else "-",
+            "Registered On": (item.created_at + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.created_at else "-"
+        })
+
+    df = pd.DataFrame(data)
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Registered Users")
+
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=registered_users.xlsx"
+        }
+    )
+
+@router.get("/admin/users/download")
+async def download_registered_users(
+    search: str = Query(""),
+    from_date: str = Query(""),
+    to_date: str = Query(""),
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth)
+):
+    query = db.query(CustomerUser).filter(CustomerUser.is_deleted == 0)
+
+    if search:
+        query = query.filter(
+            or_(
+                CustomerUser.name.ilike(f"%{search}%"),
+                CustomerUser.mobile_number.ilike(f"%{search}%"),
+                CustomerUser.email.ilike(f"%{search}%"),
+                CustomerUser.address.ilike(f"%{search}%"),
+                CustomerUser.nearby_store.ilike(f"%{search}%")
+            )
+        )
+
+    if from_date:
+        from_datetime = datetime.strptime(from_date, "%Y-%m-%d")
+        query = query.filter(CustomerUser.created_at >= from_datetime)
+
+    if to_date:
+        to_datetime = datetime.strptime(to_date, "%Y-%m-%d")
+        to_datetime = to_datetime.replace(hour=23, minute=59, second=59)
+        query = query.filter(CustomerUser.created_at <= to_datetime)
+
+    users = query.order_by(desc(CustomerUser.created_at)).all()
+
+    data = []
+    for item in users:
+        data.append({
+            "ID": item.id,
+            "Name": item.name,
+            "Mobile Number": item.mobile_number,
+            "Email": item.email if item.email else "-",
+            "Address": item.address if item.address else "-",
+            "Nearby Store": item.nearby_store if item.nearby_store else "-",
+            "Registered On": (item.created_at + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.created_at else "-"
+        })
+
+    df = pd.DataFrame(data)
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Registered Users")
+
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=registered_users.xlsx"
+        }
+    )
