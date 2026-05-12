@@ -222,3 +222,32 @@ class CustomerUser(Base):
 
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
+class SilverRate(Base):
+    __tablename__ = "silver_rates"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # 835 Silver Rates
+    silver_835_rate = Column(Float, nullable=False)  # 835 selling price per 10 gram
+    silver_835_exchange_rate = Column(Float, nullable=False)  # 835 exchange price per 10 gram
+    silver_835_making_charges = Column(Float, nullable=False, default=0.0)  # 835 making charges
+
+    # 925 Silver Rates
+    silver_925_rate = Column(Float, nullable=False)  # 925 selling price per 10 gram
+    silver_925_exchange_rate = Column(Float, nullable=False)  # 925 exchange price per 10 gram
+    silver_925_making_charges = Column(Float, nullable=False, default=0.0)  # 925 making charges
+
+    # 990 Silver Rates
+    silver_990_rate = Column(Float, nullable=False)  # 990 selling price per 10 gram
+    silver_990_exchange_rate = Column(Float, nullable=False)  # 990 exchange price per 10 gram
+    silver_990_making_charges = Column(Float, nullable=False, default=0.0)  # 990 making charges
+
+    release_datetime = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('release_datetime', name='_silver_release_datetime_uc'),
+    )
+
+    def __repr__(self):
+        return f"<SilverRate(835: ₹{self.silver_835_rate}, 925: ₹{self.silver_925_rate}, 990: ₹{self.silver_990_rate}, released: {self.release_datetime})>"

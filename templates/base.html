@@ -73,6 +73,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if 'silver-rates' in request.url.path %}active{% endif %}" href="/admin/silver-rates">
+                        <i class="bi bi-currency-exchange"></i> Silver Rates
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if 'stores' in request.url.path %}active{% endif %}" href="/admin/stores">
                         <i class="bi bi-shop"></i> Store Management
                     </a>
@@ -120,6 +125,11 @@
                     <li class="nav-item">
                         <a class="nav-link {% if 'gold-rates' in request.url.path %}active{% endif %}" href="/admin/gold-rates" style="color: white !important; display: flex !important; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;">
                             <i class="bi bi-currency-exchange me-2"></i> Gold Rates
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'silver-rates' in request.url.path %}active{% endif %}" href="/admin/silver-rates" style="color: white !important; display: flex !important; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;">
+                            <i class="bi bi-currency-exchange me-2"></i> Silver Rates
                         </a>
                     </li>
                     <li class="nav-item">

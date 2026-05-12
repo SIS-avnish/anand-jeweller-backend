@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 
 from database import get_db
-from models import AdminUser, GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, UserRole, CustomerUser
+from models import AdminUser, GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, UserRole, CustomerUser,SilverRate
 from auth import authenticate_user, login_user, logout_user, get_current_user, is_authenticated, require_super_admin, require_contact_access, is_super_admin
 from jwt_auth import require_admin_auth
 from fastapi import Query
@@ -137,6 +137,7 @@ async def admin_dashboard(
     total_achievements = db.query(Achievement).count()
     total_notifications = db.query(Notification).count()
     latest_rate = db.query(GoldRate).order_by(desc(GoldRate.release_datetime)).first()
+    latest_silver_rate = db.query(SilverRate).order_by(desc(SilverRate.release_datetime)).first()
     total_registered_users = db.query(CustomerUser).filter(
     CustomerUser.is_deleted == 0
     ).count()
@@ -161,6 +162,7 @@ async def admin_dashboard(
         "total_notifications": total_notifications,
         "total_registered_users": total_registered_users,
         "latest_rate": latest_rate,
+        "latest_silver_rate": latest_silver_rate,
         "jwt_token": jwt_token
     })
 
@@ -2060,3 +2062,258 @@ async def download_registered_users(
             "Content-Disposition": "attachment; filename=registered_users.xlsx"
         }
     )
+
+# List all silver rates - Super Admin only
+@router.get("/admin/silver-rates", response_class=HTMLResponse)
+async def list_silver_rates(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    current_user = require_super_admin(request, db)
+
+    silver_rates = db.query(SilverRate).order_by(desc(SilverRate.release_datetime)).all()
+    jwt_token = request.session.get("jwt_token", "")
+
+    return templates.TemplateResponse("silver_rates/list.html", {
+        "request": request,
+        "user": current_user,
+        "user_role": current_user.role,
+        "silver_rates": silver_rates,
+        "jwt_token": jwt_token
+    })
+
+
+# Add silver rate form
+@router.get("/admin/silver-rates/add", response_class=HTMLResponse)
+async def add_silver_rate_form(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth)
+):
+    jwt_token = request.session.get("jwt_token", "")
+
+    return templates.TemplateResponse(
+        "silver_rates/add.html",
+        {
+            "request": request,
+            "user": current_user,
+            "user_role": current_user.role,
+            "jwt_token": jwt_token
+        }
+    )
+
+
+# Add silver rate handler
+@router.post("/admin/silver-rates/add")
+async def add_silver_rate(
+    request: Request,
+
+    silver_835_rate: float = Form(...),
+    silver_835_exchange_rate: float = Form(...),
+    silver_835_making_charges: float = Form(...),
+
+    silver_925_rate: float = Form(...),
+    silver_925_exchange_rate: float = Form(...),
+    silver_925_making_charges: float = Form(...),
+
+    silver_990_rate: float = Form(...),
+    silver_990_exchange_rate: float = Form(...),
+    silver_990_making_charges: float = Form(...),
+
+    release_datetime: str = Form(...),
+
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth)
+):
+    if not is_authenticated(request):
+        return RedirectResponse(url="/admin/login", status_code=302)
+
+    try:
+        release_dt = datetime.fromisoformat(release_datetime.replace("T", " "))
+
+        existing = db.query(SilverRate).filter(
+            SilverRate.release_datetime == release_dt
+        ).first()
+
+        if existing:
+            return templates.TemplateResponse(
+                "silver_rates/add.html",
+                {
+                    "request": request,
+                    "user": current_user,
+                    "user_role": current_user.role,
+                    "error": "A silver rate already exists for this date and time",
+                    "jwt_token": request.session.get("jwt_token", "")
+                }
+            )
+
+        silver_rate = SilverRate(
+            silver_835_rate=silver_835_rate,
+            silver_835_exchange_rate=silver_835_exchange_rate,
+            silver_835_making_charges=silver_835_making_charges,
+
+            silver_925_rate=silver_925_rate,
+            silver_925_exchange_rate=silver_925_exchange_rate,
+            silver_925_making_charges=silver_925_making_charges,
+
+            silver_990_rate=silver_990_rate,
+            silver_990_exchange_rate=silver_990_exchange_rate,
+            silver_990_making_charges=silver_990_making_charges,
+
+            release_datetime=release_dt
+        )
+
+        db.add(silver_rate)
+        db.commit()
+
+        return RedirectResponse(url="/admin/silver-rates", status_code=302)
+
+    except Exception as e:
+        return templates.TemplateResponse(
+            "silver_rates/add.html",
+            {
+                "request": request,
+                "user": current_user,
+                "user_role": current_user.role,
+                "error": f"Error adding silver rate: {str(e)}",
+                "jwt_token": request.session.get("jwt_token", "")
+            }
+        )
+
+
+# Edit silver rate form
+@router.get("/admin/silver-rates/edit/{rate_id}", response_class=HTMLResponse)
+async def edit_silver_rate_form(
+    request: Request,
+    rate_id: int,
+    db: Session = Depends(get_db)
+):
+    if not is_authenticated(request):
+        return RedirectResponse(url="/admin/login", status_code=302)
+
+    silver_rate = db.query(SilverRate).filter(SilverRate.id == rate_id).first()
+
+    if not silver_rate:
+        raise HTTPException(status_code=404, detail="Silver rate not found")
+
+    current_user = get_current_user(request, db)
+    jwt_token = request.session.get("jwt_token", "")
+
+    return templates.TemplateResponse(
+        "silver_rates/edit.html",
+        {
+            "request": request,
+            "user": current_user,
+            "user_role": current_user.role,
+            "silver_rate": silver_rate,
+            "jwt_token": jwt_token
+        }
+    )
+
+
+# Edit silver rate handler
+@router.post("/admin/silver-rates/edit/{rate_id}")
+async def edit_silver_rate(
+    request: Request,
+    rate_id: int,
+
+    silver_835_rate: float = Form(...),
+    silver_835_exchange_rate: float = Form(...),
+    silver_835_making_charges: float = Form(...),
+
+    silver_925_rate: float = Form(...),
+    silver_925_exchange_rate: float = Form(...),
+    silver_925_making_charges: float = Form(...),
+
+    silver_990_rate: float = Form(...),
+    silver_990_exchange_rate: float = Form(...),
+    silver_990_making_charges: float = Form(...),
+
+    release_datetime: str = Form(...),
+
+    db: Session = Depends(get_db)
+):
+    if not is_authenticated(request):
+        return RedirectResponse(url="/admin/login", status_code=302)
+
+    try:
+        silver_rate = db.query(SilverRate).filter(SilverRate.id == rate_id).first()
+
+        if not silver_rate:
+            raise HTTPException(status_code=404, detail="Silver rate not found")
+
+        release_dt = datetime.fromisoformat(release_datetime.replace("T", " "))
+
+        existing = db.query(SilverRate).filter(
+            SilverRate.release_datetime == release_dt,
+            SilverRate.id != rate_id
+        ).first()
+
+        if existing:
+            current_user = get_current_user(request, db)
+            return templates.TemplateResponse(
+                "silver_rates/edit.html",
+                {
+                    "request": request,
+                    "user": current_user,
+                    "user_role": current_user.role,
+                    "silver_rate": silver_rate,
+                    "error": "A silver rate already exists for this date and time",
+                    "jwt_token": request.session.get("jwt_token", "")
+                }
+            )
+
+        silver_rate.silver_835_rate = silver_835_rate
+        silver_rate.silver_835_exchange_rate = silver_835_exchange_rate
+        silver_rate.silver_835_making_charges = silver_835_making_charges
+
+        silver_rate.silver_925_rate = silver_925_rate
+        silver_rate.silver_925_exchange_rate = silver_925_exchange_rate
+        silver_rate.silver_925_making_charges = silver_925_making_charges
+
+        silver_rate.silver_990_rate = silver_990_rate
+        silver_rate.silver_990_exchange_rate = silver_990_exchange_rate
+        silver_rate.silver_990_making_charges = silver_990_making_charges
+
+        silver_rate.release_datetime = release_dt
+
+        db.commit()
+
+        return RedirectResponse(url="/admin/silver-rates", status_code=302)
+
+    except Exception as e:
+        current_user = get_current_user(request, db)
+        silver_rate = db.query(SilverRate).filter(SilverRate.id == rate_id).first()
+
+        return templates.TemplateResponse(
+            "silver_rates/edit.html",
+            {
+                "request": request,
+                "user": current_user,
+                "user_role": current_user.role,
+                "silver_rate": silver_rate,
+                "error": f"Error updating silver rate: {str(e)}",
+                "jwt_token": request.session.get("jwt_token", "")
+            }
+        )
+
+
+# Delete silver rate
+@router.get("/admin/silver-rates/delete/{rate_id}")
+async def delete_silver_rate(
+    request: Request,
+    rate_id: int,
+    db: Session = Depends(get_db)
+):
+    if not is_authenticated(request):
+        return RedirectResponse(url="/admin/login", status_code=302)
+
+    silver_rate = db.query(SilverRate).filter(SilverRate.id == rate_id).first()
+
+    if not silver_rate:
+        raise HTTPException(status_code=404, detail="Silver rate not found")
+
+    db.delete(silver_rate)
+    db.commit()
+
+    return RedirectResponse(url="/admin/silver-rates", status_code=302)

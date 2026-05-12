@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Gold Rate Management System{% endblock %}
+{% block title %}Dashboard - Gold & Silver Rate Management System{% endblock %}
 
 {% block content %}
 <style>
@@ -10,13 +10,11 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
 }
 
-/* jab sirf ek hi card ho */
 .row:has(.single-card:only-child) .single-card {
     width: 100%;
 }
 </style>
 
-<!-- Modern Welcome Header -->
 <div class="welcome-card my-2">
     <div class="row align-items-center">
         <div class="col-lg-8 col-md-7 mb-3 mb-md-0">
@@ -28,7 +26,7 @@
                     <h1 class="welcome-title">
                         Welcome to <span style="color: var(--secondary);">ANAND JEWELS</span>
                     </h1>
-                    <p class="welcome-subtitle">Gold Rate Management Dashboard</p>
+                    <p class="welcome-subtitle">Gold & Silver Rate Management Dashboard</p>
                 </div>
             </div>
         </div>
@@ -140,7 +138,6 @@
             </div>
         </div>
     </div>
-
     {% else %}
     <div class="col-12">
         <div class="table-card">
@@ -150,6 +147,116 @@
                 <p>Add today's gold rates to display them here.</p>
                 <a href="/admin/gold-rates/add" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i>Add Gold Rates
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-4 mt-2">
+    {% if latest_silver_rate %}
+    <div class="col-lg-4 col-md-6">
+        <div class="table-card">
+            <div class="table-header text-center">
+                <h5 class="table-title mb-1">
+                    <i class="bi bi-circle-fill me-2" style="color: var(--secondary);"></i>835 Silver
+                </h5>
+                <small class="table-subtitle">83.50% Purity</small>
+            </div>
+            <div class="p-4 text-center">
+                <div class="mb-3">
+                    <div class="current-rate mb-2" style="font-size: 1.5rem;">₹{{ latest_silver_rate.silver_835_rate|round(2) }}</div>
+                    <small class="text-muted">Selling Rate/10 gram</small>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded">
+                            <div class="fw-semibold">₹{{ latest_silver_rate.silver_835_exchange_rate|round(2) }}</div>
+                            <small class="text-muted">Exchange</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded">
+                            <div class="fw-semibold">₹{{ latest_silver_rate.silver_835_making_charges|round(2) }}</div>
+                            <small class="text-muted">Making</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+        <div class="table-card">
+            <div class="table-header text-center">
+                <h5 class="table-title mb-1">
+                    <i class="bi bi-circle-half me-2" style="color: var(--secondary);"></i>925 Silver
+                </h5>
+                <small class="table-subtitle">92.50% Purity</small>
+            </div>
+            <div class="p-4 text-center">
+                <div class="mb-3">
+                    <div class="current-rate mb-2" style="font-size: 1.5rem;">₹{{ latest_silver_rate.silver_925_rate|round(2) }}</div>
+                    <small class="text-muted">Selling Rate/10 gram</small>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded">
+                            <div class="fw-semibold">₹{{ latest_silver_rate.silver_925_exchange_rate|round(2) }}</div>
+                            <small class="text-muted">Exchange</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded">
+                            <div class="fw-semibold">₹{{ latest_silver_rate.silver_925_making_charges|round(2) }}</div>
+                            <small class="text-muted">Making</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 col-md-12">
+        <div class="table-card">
+            <div class="table-header text-center">
+                <h5 class="table-title mb-1">
+                    <i class="bi bi-record-circle me-2" style="color: var(--secondary);"></i>990 Silver
+                </h5>
+                <small class="table-subtitle">99.00% Purity</small>
+            </div>
+            <div class="p-4 text-center">
+                <div class="mb-3">
+                    <div class="current-rate mb-2" style="font-size: 1.5rem;">₹{{ latest_silver_rate.silver_990_rate|round(2) }}</div>
+                    <small class="text-muted">Selling Rate/10 gram</small>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded">
+                            <div class="fw-semibold">₹{{ latest_silver_rate.silver_990_exchange_rate|round(2) }}</div>
+                            <small class="text-muted">Exchange</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-light p-2 rounded">
+                            <div class="fw-semibold">₹{{ latest_silver_rate.silver_990_making_charges|round(2) }}</div>
+                            <small class="text-muted">Making</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="table-card">
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h6>No Silver Rates Available</h6>
+                <p>Add today's silver rates to display them here.</p>
+                <a href="/admin/silver-rates/add" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i>Add Silver Rates
                 </a>
             </div>
         </div>
@@ -182,7 +289,6 @@
 
     <div class="p-0">
         <div class="row g-0 justify-content-center">
-
             <div class="col-lg-6 col-md-6">
                 <div class="p-4 text-center single-card">
                     <div class="mb-3">
@@ -210,7 +316,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -367,6 +472,158 @@
     </div>
 </div>
 
+<!-- Modern Recent Silver Rates Section -->
+<div class="table-card mb-5">
+    <div class="table-header">
+        <div class="row align-items-center">
+            <div class="col-md-8 mb-2 mb-md-0">
+                <h5 class="table-title">
+                    <i class="bi bi-circle-fill me-2" style="color: var(--secondary);"></i>Current Silver Rates
+                </h5>
+                <small class="table-subtitle">835, 925 & 990 - Selling, Exchange & Making Charges</small>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group">
+                    <a href="/admin/silver-rates" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-eye me-1"></i>View All
+                    </a>
+                    <a href="/admin/silver-rates/add" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>Add New
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-0">
+        {% if latest_silver_rate %}
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="align-middle">
+                            <i class="bi bi-award me-1" style="color: var(--secondary);"></i>Purity
+                        </th>
+                        <th colspan="3" class="text-center" style="border-bottom: 1px solid var(--gray-200);">
+                            <i class="bi bi-currency-rupee me-1" style="color: var(--success);"></i>Rates (₹/10 gram)
+                        </th>
+                        <th rowspan="2" class="align-middle d-none d-lg-table-cell">
+                            <i class="bi bi-calendar-event me-1" style="color: var(--info);"></i>Updated
+                        </th>
+                        <th rowspan="2" class="align-middle d-none d-md-table-cell">Actions</th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Selling</th>
+                        <th class="text-center">Exchange</th>
+                        <th class="text-center">Making</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="purity-badge me-3">
+                                    <i class="bi bi-circle-fill"></i>
+                                    835
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">835 Silver</div>
+                                    <small class="text-muted">83.50% Purity</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="current-rate">₹{{ latest_silver_rate.silver_835_rate|round(2) }}</div>
+                        </td>
+                        <td class="text-center">
+                            <div class="previous-rate">₹{{ latest_silver_rate.silver_835_exchange_rate|round(2) }}</div>
+                        </td>
+                        <td class="text-center">
+                            <div class="fw-semibold" style="color: var(--secondary);">₹{{ latest_silver_rate.silver_835_making_charges|round(2) }}</div>
+                        </td>
+                        <td class="d-none d-lg-table-cell text-center" rowspan="3">
+                            <div class="update-time">
+                                {{ latest_silver_rate.release_datetime.strftime('%b %d') }}
+                                <small>{{ latest_silver_rate.release_datetime.strftime('%H:%M') }}</small>
+                            </div>
+                        </td>
+                        <td class="d-none d-md-table-cell text-center" rowspan="3">
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a href="/admin/silver-rates/edit/{{ latest_silver_rate.id }}" class="btn btn-outline-primary btn-sm" title="Edit Rates">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="/admin/silver-rates" class="btn btn-outline-primary btn-sm" title="View All Rates">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="purity-badge me-3">
+                                    <i class="bi bi-circle-half"></i>
+                                    925
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">925 Silver</div>
+                                    <small class="text-muted">92.50% Purity</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="current-rate">₹{{ latest_silver_rate.silver_925_rate|round(2) }}</div>
+                        </td>
+                        <td class="text-center">
+                            <div class="previous-rate">₹{{ latest_silver_rate.silver_925_exchange_rate|round(2) }}</div>
+                        </td>
+                        <td class="text-center">
+                            <div class="fw-semibold" style="color: var(--secondary);">₹{{ latest_silver_rate.silver_925_making_charges|round(2) }}</div>
+                        </td>
+                    </tr>
+
+                    <tr style="border-bottom: 2px solid var(--gray-200);">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="purity-badge me-3">
+                                    <i class="bi bi-record-circle"></i>
+                                    990
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">990 Silver</div>
+                                    <small class="text-muted">99.00% Purity</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="current-rate">₹{{ latest_silver_rate.silver_990_rate|round(2) }}</div>
+                        </td>
+                        <td class="text-center">
+                            <div class="previous-rate">₹{{ latest_silver_rate.silver_990_exchange_rate|round(2) }}</div>
+                        </td>
+                        <td class="text-center">
+                            <div class="fw-semibold" style="color: var(--secondary);">₹{{ latest_silver_rate.silver_990_making_charges|round(2) }}</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h6>No Silver Rates Available</h6>
+            <p>Start by adding your first silver rate to track market changes.</p>
+            <a href="/admin/silver-rates/add" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-circle"></i>Add Your First Rate
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -392,44 +649,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateTime();
     setInterval(updateTime, 60000);
-
-    function animateCounter(element) {
-        const target = parseInt(element.getAttribute('data-target'));
-        const duration = 2000;
-        const increment = target / (duration / 16);
-        let current = 0;
-
-        const timer = setInterval(() => {
-            current += increment;
-
-            if (current >= target) {
-                current = target;
-                clearInterval(timer);
-            }
-
-            element.textContent = Math.floor(current);
-        }, 16);
-    }
-
-    const counters = document.querySelectorAll('.counter');
-
-    const observerOptions = {
-        threshold: 0.5,
-        rootMargin: '0px 0px -50px 0px'
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                animateCounter(entry.target);
-                observer.unobserve(entry.target);
-            }
-        });
-    }, observerOptions);
-
-    counters.forEach(counter => {
-        observer.observe(counter);
-    });
 
     document.querySelectorAll('.current-rate').forEach((rate, index) => {
         rate.style.animationDelay = `${index * 0.2}s`;

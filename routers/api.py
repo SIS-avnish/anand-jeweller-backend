@@ -7,8 +7,10 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import timedelta
 from sqlalchemy import asc
 from database import get_db
-from models import GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, CustomerUser
+from models import GoldRate, Store, ContactEnquiry, Guide, About, Team, Mission, Terms, Vision, Award, Achievement, Notification, CustomerUser,SilverRate
 from passlib.context import CryptContext
+
+
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -1291,3 +1293,117 @@ async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(
         "name": user.name
 
     }
+
+@router.get("/api/silver-rates/latest")
+async def get_latest_silver_rates(
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get latest silver rates"""
+
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time = datetime.now(ist)
+
+    latest_rate = (
+        db.query(SilverRate)
+        .filter(SilverRate.release_datetime <= current_time)
+        .order_by(desc(SilverRate.release_datetime))
+        .first()
+    )
+
+    if not latest_rate:
+        return {"message": "No silver rates available"}
+
+    release_dt_ist = (
+        latest_rate.release_datetime.astimezone(ist)
+        if latest_rate.release_datetime.tzinfo
+        else ist.localize(latest_rate.release_datetime)
+    )
+
+    return {
+        "release_datetime": release_dt_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
+        "created_at": latest_rate.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "conditions_apply": "*Conditions Apply*",
+        "note": "चांदी का भाव * प्रति 10 ग्राम | GST extra",
+
+        "silver_rates": {
+
+            "835": {
+                "selling_rate": float(latest_rate.silver_835_rate),
+                "exchange_rate": float(latest_rate.silver_835_exchange_rate),
+                "making_charges": float(latest_rate.silver_835_making_charges)
+            },
+
+            "925": {
+                "selling_rate": float(latest_rate.silver_925_rate),
+                "exchange_rate": float(latest_rate.silver_925_exchange_rate),
+                "making_charges": float(latest_rate.silver_925_making_charges)
+            },
+
+            "990": {
+                "selling_rate": float(latest_rate.silver_990_rate),
+                "exchange_rate": float(latest_rate.silver_990_exchange_rate),
+                "making_charges": float(latest_rate.silver_990_making_charges)
+            }
+        }
+    }
+
+@router.get("/api/silver-rates/history/7d")
+async def get_silver_7_day_history(
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """Get consolidated silver rates history for the last 7 days"""
+
+    ist = pytz.timezone('Asia/Kolkata')
+    current_time = datetime.now(ist)
+
+    start_date = (
+        current_time - timedelta(days=6)
+    ).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    rates = (
+        db.query(SilverRate)
+        .filter(
+            SilverRate.release_datetime >= start_date,
+            SilverRate.release_datetime <= current_time
+        )
+        .order_by(desc(SilverRate.release_datetime))
+        .all()
+    )
+
+    history = []
+
+    for rate in rates:
+
+        release_dt_ist = (
+            rate.release_datetime.astimezone(ist)
+            if rate.release_datetime.tzinfo
+            else ist.localize(rate.release_datetime)
+        )
+
+        history.append({
+            "date": release_dt_ist.strftime("%Y-%m-%d"),
+            "datetime": release_dt_ist.strftime("%Y-%m-%d %H:%M:%S %Z"),
+
+            "silver_rates": {
+
+                "835": {
+                    "selling_rate": float(rate.silver_835_rate),
+                    "exchange_rate": float(rate.silver_835_exchange_rate),
+                    "making_charges": float(rate.silver_835_making_charges)
+                },
+
+                "925": {
+                    "selling_rate": float(rate.silver_925_rate),
+                    "exchange_rate": float(rate.silver_925_exchange_rate),
+                    "making_charges": float(rate.silver_925_making_charges)
+                },
+
+                "990": {
+                    "selling_rate": float(rate.silver_990_rate),
+                    "exchange_rate": float(rate.silver_990_exchange_rate),
+                    "making_charges": float(rate.silver_990_making_charges)
+                }
+            }
+        })
+
+    return history
