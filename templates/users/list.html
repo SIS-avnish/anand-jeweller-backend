@@ -169,62 +169,87 @@
         </div>
 
         <!-- PAGINATION -->
+        
+        {% if total_pages > 1 %}
         <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-
+        
             <div>
-                <strong>
-                    Page {{ page }} of {{ total_pages }}
-                </strong>
+                <strong>Page {{ page }} of {{ total_pages }}</strong>
             </div>
-
+        
             <nav>
-
-                <ul class="pagination mb-0">
-
-                    {% if page > 1 %}
-
-                    <li class="page-item">
-
+                <ul class="pagination mb-0 flex-wrap">
+        
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
                         <a class="page-link"
                            href="/admin/users?page={{ page - 1 }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
                             Previous
                         </a>
-
                     </li>
-
+        
+                    {% set start_page = page - 2 %}
+                    {% set end_page = page + 2 %}
+        
+                    {% if start_page < 1 %}
+                        {% set start_page = 1 %}
                     {% endif %}
-
-                    {% for p in range(1, total_pages + 1) %}
-
+        
+                    {% if end_page > total_pages %}
+                        {% set end_page = total_pages %}
+                    {% endif %}
+        
+                    {% if start_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="/admin/users?page=1&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                            1
+                        </a>
+                    </li>
+                    {% endif %}
+        
+                    {% if start_page > 2 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+        
+                    {% for p in range(start_page, end_page + 1) %}
                     <li class="page-item {% if p == page %}active{% endif %}">
-
                         <a class="page-link"
                            href="/admin/users?page={{ p }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
                             {{ p }}
                         </a>
-
                     </li>
-
                     {% endfor %}
-
-                    {% if page < total_pages %}
-
+        
+                    {% if end_page < total_pages - 1 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+        
+                    {% if end_page < total_pages %}
                     <li class="page-item">
-
+                        <a class="page-link"
+                           href="/admin/users?page={{ total_pages }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                            {{ total_pages }}
+                        </a>
+                    </li>
+                    {% endif %}
+        
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
                         <a class="page-link"
                            href="/admin/users?page={{ page + 1 }}&search={{ search }}&from_date={{ from_date }}&to_date={{ to_date }}">
                             Next
                         </a>
-
                     </li>
-
-                    {% endif %}
-
+        
                 </ul>
-
             </nav>
-
+        
+        
         </div>
+        {% endif %}
 
         {% else %}
 
