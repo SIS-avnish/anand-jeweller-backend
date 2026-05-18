@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 
@@ -27,6 +28,13 @@ app = FastAPI(
     description="A comprehensive MVP for managing gold rates with admin dashboard and public API",
     version="1.0.0",
     lifespan=lifespan
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 # Add session middleware for authentication
 # In production, use a secure secret key
