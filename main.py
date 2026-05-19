@@ -31,7 +31,13 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://social-gray-cheetah.66-116-224-207.cpanel.site",
+        "https://stellular-dango-c81d79.netlify.app",
+        "https://frolicking-sawine-ea298b.netlify.app",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
