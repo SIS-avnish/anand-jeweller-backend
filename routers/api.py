@@ -1150,6 +1150,8 @@ async def register_user(payload: RegisterRequest, db: Session = Depends(get_db))
         CustomerUser.mobile_number == payload.mobile_number
     ).first()
     if existing_mobile:
+        if existing_mobile.is_deleted == 1:
+            raise HTTPException(status_code=400, detail="Account has been deactivated. Please contact admin to recover your account.")
         raise HTTPException(status_code=400, detail="Mobile number already registered")
 
     # Email check sirf tab karo jab email diya ho
@@ -1158,6 +1160,8 @@ async def register_user(payload: RegisterRequest, db: Session = Depends(get_db))
             CustomerUser.email == payload.email
         ).first()
         if existing_email:
+            if existing_email.is_deleted == 1:
+                raise HTTPException(status_code=400, detail="Account has been deactivated. Please contact admin to recover your account.")
             raise HTTPException(status_code=400, detail="Email already registered")
 
     new_user = CustomerUser(

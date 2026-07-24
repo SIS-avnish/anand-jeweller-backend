@@ -89,8 +89,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if 'users' in request.url.path %}active{% endif %}" href="/admin/users">
+                    <a class="nav-link {% if request.url.path == '/admin/users' %}active{% endif %}" href="/admin/users">
                         <i class="bi bi-people"></i> Registered Users
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.url.path == '/admin/users/deleted' %}active{% endif %}" href="/admin/users/deleted">
+                        <i class="bi bi-person-x"></i> Deleted Users
                     </a>
                 </li>
                 {% if user_role == 'super_admin' %}
@@ -141,6 +146,16 @@
                     <li class="nav-item">
                         <a class="nav-link {% if 'contact-enquiries' in request.url.path %}active{% endif %}" href="/admin/contact-enquiries" style="color: white !important; display: flex !important; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;">
                             <i class="bi bi-envelope me-2"></i> Contact Enquiries
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.url.path == '/admin/users' %}active{% endif %}" href="/admin/users" style="color: white !important; display: flex !important; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;">
+                            <i class="bi bi-people me-2"></i> Registered Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.url.path == '/admin/users/deleted' %}active{% endif %}" href="/admin/users/deleted" style="color: white !important; display: flex !important; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 8px;">
+                            <i class="bi bi-person-x me-2"></i> Deleted Users
                         </a>
                     </li>
                     {% if user_role == 'super_admin' %}

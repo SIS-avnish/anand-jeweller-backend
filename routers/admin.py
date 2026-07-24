@@ -17,12 +17,118 @@ from fastapi import Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
 from io import BytesIO
-import pandas as pd
 import math
+import zipfile
+from xml.sax.saxutils import escape
 from datetime import timedelta
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+
+def _excel_column_name(index: int) -> str:
+    """Convert a zero-based column index to an Excel column label."""
+    index += 1
+    name = ""
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
+def _build_xlsx_bytes(sheet_name: str, rows: list[dict]) -> BytesIO:
+    """Build a minimal XLSX workbook without third-party Excel writers."""
+    headers = list(rows[0].keys()) if rows else []
+
+    def cell_xml(cell_ref: str, value) -> str:
+        if value is None or value == "":
+            return f'<c r="{cell_ref}" t="inlineStr"><is><t/></is></c>'
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return f'<c r="{cell_ref}"><v>{value}</v></c>'
+        text = escape(str(value))
+        return (
+            f'<c r="{cell_ref}" t="inlineStr">'
+            f'<is><t xml:space="preserve">{text}</t></is></c>'
+        )
+
+    sheet_rows = []
+    if headers:
+        header_cells = []
+        for column_index, header in enumerate(headers):
+            cell_ref = f"{_excel_column_name(column_index)}1"
+            header_cells.append(cell_xml(cell_ref, header))
+        sheet_rows.append(f'<row r="1">{"".join(header_cells)}</row>')
+
+    for row_index, row in enumerate(rows, start=2):
+        row_cells = []
+        for column_index, header in enumerate(headers):
+            cell_ref = f"{_excel_column_name(column_index)}{row_index}"
+            row_cells.append(cell_xml(cell_ref, row.get(header)))
+        sheet_rows.append(f'<row r="{row_index}">{"".join(row_cells)}</row>')
+
+    safe_sheet_name = escape(sheet_name)
+    sheet_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<sheetData>{"".join(sheet_rows)}</sheetData>'
+        '</worksheet>'
+    )
+
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<sheets><sheet name="{safe_sheet_name}" sheetId="1" r:id="rId1"/></sheets>'
+        '</workbook>'
+    )
+
+    output = BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+    <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>
+""",
+        )
+        archive.writestr(
+            "_rels/.rels",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>
+""",
+        )
+        archive.writestr("xl/workbook.xml", workbook_xml)
+        archive.writestr(
+            "xl/_rels/workbook.xml.rels",
+            """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>
+""",
+        )
+        archive.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+
+    output.seek(0)
+    return output
+
+
+def _build_excel_response(rows: list[dict], sheet_name: str, filename: str) -> StreamingResponse:
+    """Create a downloadable Excel response from tabular data."""
+    output = _build_xlsx_bytes(sheet_name, rows)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
 
 # Template response utility function
 def render_template(template_name: str, context: dict, current_user: AdminUser = None):
@@ -183,6 +289,34 @@ async def list_gold_rates(
         "gold_rates": gold_rates,
         "jwt_token": jwt_token
     })
+
+# Download gold rates
+@router.get("/admin/gold-rates/download")
+async def download_gold_rates(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    current_user = require_super_admin(request, db)
+    rates = db.query(GoldRate).order_by(desc(GoldRate.release_datetime)).all()
+    
+    data = []
+    for item in rates:
+        data.append({
+            "ID": item.id,
+            "Release Date": (item.release_datetime + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.release_datetime else "-",
+            "24K New Rate (per g)": item.gold_24k_new_rate,
+            "24K Exchange Rate (per g)": item.gold_24k_exchange_rate,
+            "24K Making Charges (per g)": item.gold_24k_making_charges,
+            "22K New Rate (per g)": item.gold_22k_new_rate,
+            "22K Exchange Rate (per g)": item.gold_22k_exchange_rate,
+            "22K Making Charges (per g)": item.gold_22k_making_charges,
+            "18K New Rate (per g)": item.gold_18k_new_rate,
+            "18K Exchange Rate (per g)": item.gold_18k_exchange_rate,
+            "18K Making Charges (per g)": item.gold_18k_making_charges,
+            "Created At": (item.created_at + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.created_at else "-",
+        })
+        
+    return _build_excel_response(data, "Gold Rates", "gold_rates.xlsx")
 
 # Add gold rate form
 @router.get("/admin/gold-rates/add", response_class=HTMLResponse)
@@ -1712,6 +1846,7 @@ async def delete_notification(
 @router.get("/admin/contact-enquiries", response_class=HTMLResponse)
 async def list_contact_enquiries(
     request: Request, 
+    page: int = Query(1),
     from_date: str = None,
     to_date: str = None,
     subject: str = None,
@@ -1719,6 +1854,9 @@ async def list_contact_enquiries(
     current_user: AdminUser = Depends(require_admin_auth)
 ):
     """List all contact enquiries with optional date and subject filtering"""
+    limit = 10
+    offset = (page - 1) * limit
+    
     # Start with base query
     query = db.query(ContactEnquiry)
     
@@ -1748,7 +1886,10 @@ async def list_contact_enquiries(
         else:
             query = query.filter(ContactEnquiry.subject == subject)
     
-    enquiries = query.order_by(desc(ContactEnquiry.created_at)).all()
+    total_enquiries = query.count()
+    total_pages = math.ceil(total_enquiries / limit) if total_enquiries > 0 else 1
+    
+    enquiries = query.order_by(desc(ContactEnquiry.created_at)).offset(offset).limit(limit).all()
     
     # Get all unique subjects for the dropdown
     all_subjects = db.query(ContactEnquiry.subject).distinct().all()
@@ -1768,6 +1909,8 @@ async def list_contact_enquiries(
         "user_role": current_user.role,
         "enquiries": enquiries,
         "available_subjects": available_subjects,
+        "page": page,
+        "total_pages": total_pages,
         "page_title": "Contact Enquiries Management",
         "jwt_token": jwt_token
     })
@@ -1987,21 +2130,7 @@ async def list_registered_users(
             "Registered On": (item.created_at + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.created_at else "-"
         })
 
-    df = pd.DataFrame(data)
-
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Registered Users")
-
-    output.seek(0)
-
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": "attachment; filename=registered_users.xlsx"
-        }
-    )
+    return _build_excel_response(data, "Registered Users", "registered_users.xlsx")
 
 @router.get("/admin/users/download")
 async def download_registered_users(
@@ -2047,21 +2176,67 @@ async def download_registered_users(
             "Registered On": (item.created_at + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.created_at else "-"
         })
 
-    df = pd.DataFrame(data)
+    return _build_excel_response(data, "Registered Users", "registered_users.xlsx")
 
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Registered Users")
+# Deleted Users Management
+@router.get("/admin/users/deleted", response_class=HTMLResponse)
+async def list_deleted_users(
+    request: Request,
+    page: int = Query(1),
+    search: str = Query(""),
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth)
+):
+    limit = 10
+    offset = (page - 1) * limit
 
-    output.seek(0)
+    query = db.query(CustomerUser).filter(CustomerUser.is_deleted == 1)
 
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": "attachment; filename=registered_users.xlsx"
-        }
-    )
+    if search:
+        query = query.filter(
+            or_(
+                CustomerUser.name.ilike(f"%{search}%"),
+                CustomerUser.mobile_number.ilike(f"%{search}%"),
+                CustomerUser.email.ilike(f"%{search}%")
+            )
+        )
+
+    total_users = query.count()
+    total_pages = math.ceil(total_users / limit) if total_users > 0 else 1
+
+    users = query.order_by(desc(CustomerUser.deleted_at)).offset(offset).limit(limit).all()
+    jwt_token = request.session.get("jwt_token", "")
+
+    return templates.TemplateResponse("users/deleted_list.html", {
+        "request": request,
+        "user": current_user,
+        "user_role": current_user.role,
+        "users": users,
+        "page": page,
+        "total_pages": total_pages,
+        "search": search,
+        "page_title": "Deleted Users",
+        "jwt_token": jwt_token,
+        "timedelta": timedelta
+    })
+
+@router.post("/admin/users/{user_id}/recover")
+async def recover_deleted_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth)
+):
+    user = db.query(CustomerUser).filter(CustomerUser.id == user_id, CustomerUser.is_deleted == 1).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Deleted user not found")
+    
+    user.is_deleted = 0
+    user.deleted_at = None
+    db.commit()
+    
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/users/deleted", status_code=303)
+
 
 # List all silver rates - Super Admin only
 @router.get("/admin/silver-rates", response_class=HTMLResponse)
@@ -2081,6 +2256,35 @@ async def list_silver_rates(
         "silver_rates": silver_rates,
         "jwt_token": jwt_token
     })
+
+
+# Download silver rates
+@router.get("/admin/silver-rates/download")
+async def download_silver_rates(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    current_user = require_super_admin(request, db)
+    rates = db.query(SilverRate).order_by(desc(SilverRate.release_datetime)).all()
+
+    data = []
+    for item in rates:
+        data.append({
+            "ID": item.id,
+            "Release Date": (item.release_datetime + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.release_datetime else "-",
+            "835 Rate (per 10 g)": item.silver_835_rate,
+            "835 Exchange Rate (per 10 g)": item.silver_835_exchange_rate,
+            "835 Making Charges (per 10 g)": item.silver_835_making_charges,
+            "925 Rate (per 10 g)": item.silver_925_rate,
+            "925 Exchange Rate (per 10 g)": item.silver_925_exchange_rate,
+            "925 Making Charges (per 10 g)": item.silver_925_making_charges,
+            "990 Rate (per 10 g)": item.silver_990_rate,
+            "990 Exchange Rate (per 10 g)": item.silver_990_exchange_rate,
+            "990 Making Charges (per 10 g)": item.silver_990_making_charges,
+            "Created At": (item.created_at + timedelta(hours=5, minutes=30)).strftime("%d %b %Y %I:%M %p") if item.created_at else "-",
+        })
+
+    return _build_excel_response(data, "Silver Rates", "silver_rates.xlsx")
 
 
 # Add silver rate form

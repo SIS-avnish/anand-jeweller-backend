@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Deleted Users - Anand Jewels{% endblock %}
+
+{% block content %}
+
+<div class="table-card mb-5">
+
+    <div class="table-header">
+
+        <div class="row align-items-center mb-3">
+
+            <div class="col-md-6">
+                <h5 class="table-title mb-1">
+                    <i class="bi bi-people me-2" style="color: var(--danger);"></i>
+                    Deleted Users
+                </h5>
+
+                <small class="table-subtitle">
+                    Users whose accounts have been deactivated
+                </small>
+            </div>
+
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+
+                <a href="/admin/users"
+                   class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Back to Active Users
+                </a>
+
+            </div>
+
+        </div>
+
+        <!-- FILTER FORM -->
+        <form method="get" action="/admin/users/deleted" id="filterForm">
+
+            <div class="row g-2">
+
+                <!-- SEARCH -->
+                <div class="col-md-8">
+                    <input type="text"
+                           name="search"
+                           value="{{ search }}"
+                           class="form-control"
+                           placeholder="Search name, email, mobile">
+                </div>
+
+
+                <!-- SEARCH BTN -->
+                <div class="col-md-2">
+                    <button type="submit"
+                            class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>
+                        Search
+                    </button>
+                </div>
+
+                <!-- RESET BTN -->
+                <div class="col-md-2">
+                    <a href="/admin/users/deleted"
+                       class="btn btn-secondary w-100">
+                        Reset
+                    </a>
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+    <!-- TABLE -->
+    <div class="p-0">
+
+        {% if users %}
+
+        <div class="table-responsive">
+
+            <table class="table mb-0">
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Mobile Number</th>
+                        <th>Email</th>
+                        <th>Deleted On</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in users %}
+
+                    <tr>
+
+                        <td>{{ item.id }}</td>
+
+                        <td>{{ item.name }}</td>
+
+                        <td>{{ item.mobile_number }}</td>
+
+                        <td>
+                            {% if item.email %}
+                                {{ item.email }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if item.deleted_at %}
+                                {{ (item.deleted_at + timedelta(hours=5, minutes=30)).strftime('%d %b %Y %I:%M %p') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end">
+                            <form action="/admin/users/{{ item.id }}/recover" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to recover this user?');">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Recover
+                                </button>
+                            </form>
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <!-- PAGINATION -->
+        
+        {% if total_pages > 1 %}
+        <div class="p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        
+            <div>
+                <strong>Page {{ page }} of {{ total_pages }}</strong>
+            </div>
+        
+            <nav>
+                <ul class="pagination mb-0 flex-wrap">
+        
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="/admin/users/deleted?page={{ page - 1 }}&search={{ search }}">
+                            Previous
+                        </a>
+                    </li>
+        
+                    {% set start_page = page - 2 %}
+                    {% set end_page = page + 2 %}
+        
+                    {% if start_page < 1 %}
+                        {% set start_page = 1 %}
+                    {% endif %}
+        
+                    {% if end_page > total_pages %}
+                        {% set end_page = total_pages %}
+                    {% endif %}
+        
+                    {% if start_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="/admin/users/deleted?page=1&search={{ search }}">
+                            1
+                        </a>
+                    </li>
+                    {% endif %}
+        
+                    {% if start_page > 2 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+        
+                    {% for p in range(start_page, end_page + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link"
+                           href="/admin/users/deleted?page={{ p }}&search={{ search }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                    {% endfor %}
+        
+                    {% if end_page < total_pages - 1 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+        
+                    {% if end_page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="/admin/users/deleted?page={{ total_pages }}&search={{ search }}">
+                            {{ total_pages }}
+                        </a>
+                    </li>
+                    {% endif %}
+        
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                        <a class="page-link"
+                           href="/admin/users/deleted?page={{ page + 1 }}&search={{ search }}">
+                            Next
+                        </a>
+                    </li>
+        
+                </ul>
+            </nav>
+        
+        
+        </div>
+        {% endif %}
+
+        {% else %}
+
+        <!-- EMPTY -->
+        <div class="empty-state text-center p-5">
+
+            <i class="bi bi-people"
+               style="font-size:50px; color: #ccc;"></i>
+
+            <h6 class="mt-3">
+                No Deleted Users
+            </h6>
+
+            <p class="text-muted">
+                No deactivated users found.
+            </p>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}
