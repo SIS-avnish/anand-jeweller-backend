@@ -279,9 +279,11 @@
                     <a href="/admin/terms" class="btn btn-outline-info btn-sm">
                         <i class="bi bi-file-text me-1"></i>Terms
                     </a>
+                    {% if user_role == 'super_admin' %}
                     <a href="/admin/users" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-people me-1"></i>Users
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -303,6 +305,7 @@
                 </div>
             </div>
 
+            {% if user_role == 'super_admin' %}
             <div class="col-lg-6 col-md-6">
                 <div class="p-4 text-center single-card">
                     <div class="mb-3">
@@ -316,6 +319,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
