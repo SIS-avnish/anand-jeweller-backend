@@ -157,8 +157,8 @@
 </div>
 {% endif %}
 
-<!-- Search Bar temporarily hidden -->
-{% if false %}
+<!-- Search Bar Enabled for Store Admin -->
+{% if is_store_admin %}
 <div class="soft p-3 p-lg-4 mb-4" style="background: #ffffff; border-radius: 20px;">
   <form method="get" action="/admin/queue" class="row g-3 align-items-end">
     {% if is_super_admin %}
