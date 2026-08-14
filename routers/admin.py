@@ -165,9 +165,18 @@ async def save_uploaded_file(file: Optional[UploadFile], folder: str) -> Optiona
 
 # Login page
 @router.get("/admin/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    if is_authenticated(request):
-        return RedirectResponse(url="/admin", status_code=302)
+async def login_page(request: Request, db: Session = Depends(get_db)):
+    try:
+        user = await get_current_user_web(request, db)
+        if user:
+            if user.role == UserRole.STORE_ADMIN.value and user.store_id:
+                store = db.query(Store).filter(Store.id == user.store_id).first()
+                city = store.city if store else ""
+                return RedirectResponse(url=f"/admin/queue?city={city}&store_id={user.store_id}", status_code=302)
+            return RedirectResponse(url="/admin", status_code=302)
+    except Exception:
+        pass
+    request.session.clear()
     return templates.TemplateResponse("login.html", {"request": request})
 
 # Login form handler

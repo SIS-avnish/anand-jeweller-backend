@@ -170,8 +170,36 @@
     }
 
     @media print {
-      body { background: none; padding: 0; }
-      .token-card { box-shadow: none; border: none; max-width: 100%; }
+      @page {
+        size: A4 portrait;
+        margin: 5mm;
+      }
+      
+      html, body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: auto !important;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .token-card {
+        box-shadow: none !important;
+        border: 2px solid var(--brand-red-1) !important;
+        max-width: 480px !important;
+        width: 100% !important;
+        margin: 0 auto !important;
+        page-break-inside: avoid !important;
+      }
     }
   </style>
 </head>
@@ -241,6 +269,13 @@
     <div class="token-card-footer">
       <img src="/static/images/anand_gold_flower.png" alt="Anand Gold Emblem Logo">
     </div>
+  </div>
+
+  <!-- Print Action Bar at Bottom (Hidden when printing) -->
+  <div class="no-print text-center mt-3 mb-4">
+    <button onclick="window.print()" class="btn btn-warning fw-bold px-5 py-2 text-dark shadow">
+      <i class="bi bi-printer-fill me-2"></i>Print Ticket
+    </button>
   </div>
 
 </body>

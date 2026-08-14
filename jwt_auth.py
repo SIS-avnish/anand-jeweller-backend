@@ -139,6 +139,7 @@ async def require_admin_auth(request: Request, db: Session = Depends(get_db)) ->
     user = await get_current_user_web(request, db)
     
     if not user:
+        request.session.clear()
         if "/queue" in request.url.path or "city" in request.query_params or "store_id" in request.query_params:
             raise HTTPException(
                 status_code=status.HTTP_302_FOUND,

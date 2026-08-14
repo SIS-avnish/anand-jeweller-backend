@@ -270,6 +270,8 @@ class QueueEntry(Base):
     email = Column(String, nullable=True)
     aadhar_number = Column(String, nullable=True)
     pan_number = Column(String, nullable=True)
+    aadhar_image = Column(String, nullable=True)
+    pan_image = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     status = Column(String, default="open", nullable=False)  # "open" or "closed"
     token = Column(String, nullable=False, index=True)

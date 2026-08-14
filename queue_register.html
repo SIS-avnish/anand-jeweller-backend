@@ -369,7 +369,7 @@
                 </div>
                 {% endif %}
                 
-                <form method="post" action="/queue/register" class="row grid-gap-y" id="queueForm">
+                <form method="post" action="/queue/register" enctype="multipart/form-data" class="row grid-gap-y" id="queueForm">
                     <div class="col-md-6">
                         <label class="form-label">City <span class="text-danger fw-bold">*</span></label>
                         <select class="form-select gold-input w-100" name="city" id="citySelect" required>
@@ -392,7 +392,7 @@
                     </div>
                     
                     <div class="col-md-6">
-                        <label class="form-label">Full Name <span class="text-danger fw-bold">*</span></label>
+                        <label class="form-label">Visitor Name <span class="text-danger fw-bold">*</span></label>
                         <input type="text" class="form-control gold-input" name="name" value="{{ form_data.name if form_data else '' }}" placeholder="Enter full name" required>
                     </div>
                     <div class="col-md-6">
@@ -405,17 +405,21 @@
                         <textarea class="form-control gold-input" name="address" rows="2" placeholder="Enter street address">{{ form_data.address if form_data else '' }}</textarea>
                     </div>
                     
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="form-label">Email Address <small class="text-muted fw-normal">(Optional)</small></label>
                         <input type="email" class="form-control gold-input" name="email" value="{{ form_data.email if form_data else '' }}" placeholder="name@example.com">
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Aadhaar <small class="text-muted fw-normal">(Optional)</small></label>
-                        <input type="text" class="form-control gold-input" name="aadhar_number" value="{{ form_data.aadhar_number if form_data else '' }}" placeholder="12 digit Aadhaar">
+                    <div class="col-md-6">
+                        <label class="form-label">Aadhaar Card <small class="text-muted fw-normal">(Optional)</small></label>
+                        <input type="text" class="form-control gold-input mb-2" name="aadhar_number" value="{{ form_data.aadhar_number if form_data else '' }}" placeholder="12 digit Aadhaar number">
+                        <label class="form-label small text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Upload Aadhaar Image <small>(Optional)</small></label>
+                        <input type="file" class="form-control gold-input form-control-sm" name="aadhar_image" accept="image/*,.pdf">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-6">
                         <label class="form-label">PAN Card <small class="text-muted fw-normal">(Optional)</small></label>
-                        <input type="text" class="form-control gold-input" name="pan_number" value="{{ form_data.pan_number if form_data else '' }}" placeholder="10 digit PAN">
+                        <input type="text" class="form-control gold-input mb-2" name="pan_number" value="{{ form_data.pan_number if form_data else '' }}" placeholder="10 digit PAN number">
+                        <label class="form-label small text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Upload PAN Image <small>(Optional)</small></label>
+                        <input type="file" class="form-control gold-input form-control-sm" name="pan_image" accept="image/*,.pdf">
                     </div>
                     
                     <div class="col-md-5">

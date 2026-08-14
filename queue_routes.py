@@ -1,17 +1,19 @@
+import os
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
 import random
 import re
 from urllib.parse import urlencode
 import bcrypt
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, status, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from database import get_db
+from database import get_db, engine
 from jwt_auth import require_admin_auth
 from auth import authenticate_user, login_user, is_authenticated
 from models import AdminUser, QueueEntry, Store, UserRole
@@ -19,6 +21,62 @@ from models import AdminUser, QueueEntry, Store, UserRole
 router = APIRouter()
 templates = Jinja2Templates(directory=['templates', '.'])
 CITY_PREFIXES = {'Indore': 'IND', 'Bhopal': 'BHP', 'Raipur': 'RAI'}
+
+# Ensure upload directory for queue documents exists
+UPLOAD_DIR = os.path.join("static", "uploads", "queue")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _auto_migrate_queue_entry_columns():
+    """Ensure aadhar_image and pan_image columns exist in SQLite queue_entries table"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info(queue_entries)"))
+            columns = [row[1] for row in result.fetchall()]
+            if "aadhar_image" not in columns:
+                conn.execute(text("ALTER TABLE queue_entries ADD COLUMN aadhar_image VARCHAR"))
+                conn.commit()
+            if "pan_image" not in columns:
+                conn.execute(text("ALTER TABLE queue_entries ADD COLUMN pan_image VARCHAR"))
+                conn.commit()
+    except Exception as e:
+        print(f"Auto-migration check notice: {e}")
+
+_auto_migrate_queue_entry_columns()
+
+
+async def _save_uploaded_file(file: Optional[UploadFile], prefix: str) -> Optional[str]:
+    """Helper to save uploaded document file, automatically converting images to WebP format"""
+    if not file or not file.filename:
+        return None
+    contents = await file.read()
+    if not contents:
+        return None
+
+    # Automatically convert uploaded images to WEBP format
+    try:
+        import io
+        from PIL import Image
+        img = Image.open(io.BytesIO(contents))
+        filename = f"{prefix}_{uuid.uuid4().hex[:10]}.webp"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGBA")
+        else:
+            img = img.convert("RGB")
+
+        img.save(filepath, "WEBP", quality=82, optimize=True)
+        return f"/static/uploads/queue/{filename}"
+    except Exception as e:
+        print(f"[Notice] Image WebP conversion notice: {e}, saving raw file")
+
+    file_ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
+    filename = f"{prefix}_{uuid.uuid4().hex[:10]}{file_ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+    return f"/static/uploads/queue/{filename}"
 
 
 def _optional_int(value):
@@ -134,6 +192,8 @@ async def register_visitor(
     aadhar_number: str = Form(''),
     pan_number: str = Form(''),
     captcha_answer: str = Form(...),
+    aadhar_image: Optional[UploadFile] = File(None),
+    pan_image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
@@ -164,6 +224,10 @@ async def register_visitor(
     if len(name.strip()) < 2:
         return error('Please enter the visitor name.')
 
+    # Save optional document uploads
+    aadhar_img_url = await _save_uploaded_file(aadhar_image, "aadhar")
+    pan_img_url = await _save_uploaded_file(pan_image, "pan")
+
     entry = QueueEntry(
         store_id=store.id,
         city=city,
@@ -173,6 +237,8 @@ async def register_visitor(
         email=email.strip() or None,
         aadhar_number=aadhar_number.strip() or None,
         pan_number=pan_number.strip() or None,
+        aadhar_image=aadhar_img_url,
+        pan_image=pan_img_url,
         status='open',
         token=_token(db, city),
     )
@@ -201,10 +267,21 @@ async def success_page(request: Request, db: Session = Depends(get_db)):
     })
 
 
+from sqlalchemy import desc, or_, text
+
 @router.get('/admin/queue', response_class=HTMLResponse)
-async def queue_dashboard(request: Request, db: Session = Depends(get_db), current_user: AdminUser = Depends(require_admin_auth), city: Optional[str] = None, store_id: Optional[str] = None):
+async def queue_dashboard(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+    city: Optional[str] = None,
+    store_id: Optional[str] = None,
+    search: Optional[str] = None,
+):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
     selected_store_id = _optional_int(store_id)
+    search_clean = (search or '').strip()
+
     if current_user.role == UserRole.STORE_ADMIN.value:
         if not current_user.store_id:
             raise HTTPException(status_code=403, detail='Store admin is not linked to a store')
@@ -212,7 +289,10 @@ async def queue_dashboard(request: Request, db: Session = Depends(get_db), curre
         expected_city = store.city if store else ""
         expected_store_id = current_user.store_id
         if request.query_params.get('city') != expected_city or request.query_params.get('store_id') != str(expected_store_id):
-            return RedirectResponse(url=f"/admin/queue?city={expected_city}&store_id={expected_store_id}", status_code=302)
+            redirect_url = f"/admin/queue?city={expected_city}&store_id={expected_store_id}"
+            if search_clean:
+                redirect_url += f"&search={urlencode({'search': search_clean})[7:]}"
+            return RedirectResponse(url=redirect_url, status_code=302)
         city = expected_city
         selected_store_id = expected_store_id
         stores = [store] if store else []
@@ -222,6 +302,17 @@ async def queue_dashboard(request: Request, db: Session = Depends(get_db), curre
         base_query = base_query.filter(QueueEntry.city == city)
     if selected_store_id is not None:
         base_query = base_query.filter(QueueEntry.store_id == selected_store_id)
+    if search_clean:
+        term = f"%{search_clean}%"
+        base_query = base_query.filter(
+            or_(
+                QueueEntry.name.ilike(term),
+                QueueEntry.mobile_number.ilike(term),
+                QueueEntry.aadhar_number.ilike(term),
+                QueueEntry.pan_number.ilike(term),
+                QueueEntry.token.ilike(term),
+            )
+        )
     if current_user.role == UserRole.STORE_ADMIN.value:
         base_query = base_query.filter(QueueEntry.store_id == current_user.store_id)
 
@@ -268,6 +359,7 @@ async def queue_dashboard(request: Request, db: Session = Depends(get_db), curre
         'cities': list(grouped.keys()),
         'selected_city': city or '',
         'selected_store_id': selected_store_id or '',
+        'search_query': search_clean,
         'active_entries': active_entries,
         'closed_entries': closed_entries,
         'today_total_visitors': today_total_visitors,

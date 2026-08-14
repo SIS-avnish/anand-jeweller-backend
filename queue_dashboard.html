@@ -157,11 +157,11 @@
 </div>
 {% endif %}
 
-{% if is_super_admin %}
-<div class="soft p-3 p-lg-4 mb-4">
+<div class="soft p-3 p-lg-4 mb-4" style="background: #ffffff; border-radius: 20px;">
   <form method="get" action="/admin/queue" class="row g-3 align-items-end">
-    <div class="col-md-4">
-      <label class="form-label fw-semibold">City</label>
+    {% if is_super_admin %}
+    <div class="col-md-3">
+      <label class="form-label fw-semibold small text-muted"><i class="bi bi-geo-alt me-1"></i>City</label>
       <select class="form-select" name="city">
         <option value="">All Cities</option>
         {% for city in cities %}
@@ -169,8 +169,8 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-5">
-      <label class="form-label fw-semibold">Store</label>
+    <div class="col-md-3">
+      <label class="form-label fw-semibold small text-muted"><i class="bi bi-shop me-1"></i>Store</label>
       <select class="form-select" name="store_id">
         <option value="">All Stores</option>
         {% for city_name, stores in stores_by_city.items() %}
@@ -180,12 +180,50 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3 d-flex gap-2">
-      <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-funnel me-1"></i> Apply</button>
-      <a href="/admin/queue" class="btn btn-outline-secondary">Reset</a>
+    {% else %}
+    <input type="hidden" name="city" value="{{ selected_city }}">
+    <input type="hidden" name="store_id" value="{{ selected_store_id }}">
+    {% endif %}
+
+    <div class="{% if is_super_admin %}col-md-4{% else %}col-md-9{% endif %}">
+      <label class="form-label fw-semibold small text-muted"><i class="bi bi-search me-1"></i>Search Visitor</label>
+      <div class="input-group">
+        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ search_query }}" placeholder="Search by name, mobile, Aadhaar, PAN or token...">
+      </div>
+    </div>
+
+    <div class="{% if is_super_admin %}col-md-2{% else %}col-md-3{% endif %} d-flex gap-2">
+      <button type="submit" class="btn btn-primary flex-fill fw-semibold"><i class="bi bi-search me-1"></i> Search</button>
+      {% if search_query or (is_super_admin and (selected_city or selected_store_id)) %}
+        <a href="/admin/queue{% if is_store_admin %}?city={{ selected_city }}&store_id={{ selected_store_id }}{% endif %}" class="btn btn-outline-secondary" title="Clear Search"><i class="bi bi-x-lg"></i></a>
+      {% endif %}
     </div>
   </form>
 </div>
+
+{% if search_query and (active_entries|length == 0) and (closed_entries|length == 0) %}
+<!-- Visitor Not Found Toast Notification -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090;">
+  <div id="notFoundToast" class="toast show align-items-center text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); border: 1px solid #f59e0b !important; border-radius: 16px; box-shadow: 0 12px 36px rgba(127, 29, 29, 0.4);">
+    <div class="d-flex align-items-center">
+      <div class="toast-body fs-6 fw-medium py-3 px-3">
+        <i class="bi bi-exclamation-triangle-fill me-2 text-warning fs-5"></i>
+        No visitor found matching "<strong>{{ search_query }}</strong>"
+      </div>
+      <button type="button" class="btn-close btn-close-white me-3 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var toastEl = document.getElementById('notFoundToast');
+    if (toastEl && typeof bootstrap !== 'undefined') {
+      var toast = new bootstrap.Toast(toastEl, { delay: 6000 });
+      toast.show();
+    }
+  });
+</script>
 {% endif %}
 
 <ul class="nav nav-tabs mb-3">
@@ -210,7 +248,31 @@
               <td>{{ entry.name }}</td>
               <td>{{ entry.mobile_number }}</td>
               <td><div class="fw-semibold">{{ entry.store.store_name if entry.store else '-' }}</div><small class="text-muted">{{ entry.city }}</small></td>
-              <td><details class="details"><summary class="fw-semibold">View details</summary><div class="mt-2 small"><div><strong>Address:</strong> {{ entry.address or '-' }}</div><div><strong>Email:</strong> {{ entry.email or '-' }}</div><div><strong>Aadhaar:</strong> {{ entry.aadhar_number or '-' }}</div><div><strong>PAN:</strong> {{ entry.pan_number or '-' }}</div></div></details></td>
+              <td>
+                <details class="details">
+                  <summary class="fw-semibold">View details</summary>
+                  <div class="mt-2 small">
+                    <div><strong>Address:</strong> {{ entry.address or '-' }}</div>
+                    <div><strong>Email:</strong> {{ entry.email or '-' }}</div>
+                    <div>
+                      <strong>Aadhaar:</strong> {{ entry.aadhar_number or '-' }}
+                      {% if entry.aadhar_image %}
+                        <a href="{{ entry.aadhar_image }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.72rem;">
+                          <i class="bi bi-file-earmark-image me-1"></i>View Aadhaar Image
+                        </a>
+                      {% endif %}
+                    </div>
+                    <div>
+                      <strong>PAN:</strong> {{ entry.pan_number or '-' }}
+                      {% if entry.pan_image %}
+                        <a href="{{ entry.pan_image }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.72rem;">
+                          <i class="bi bi-file-earmark-image me-1"></i>View PAN Image
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </details>
+              </td>
               <td class="text-end"><form method="post" action="/admin/queue/close/{{ entry.id }}" class="d-inline"><input type="hidden" name="city" value="{{ selected_city }}"><input type="hidden" name="store_id" value="{{ selected_store_id }}"><button type="submit" class="btn btn-success btn-sm">Mark Closed</button></form></td>
             </tr>
             {% else %}
@@ -234,8 +296,33 @@
               <td>{{ entry.created_at_ist.strftime('%d %b %Y %I:%M %p') if entry.created_at_ist else '' }}</td>
               <td>{{ entry.name }}</td>
               <td><div class="fw-semibold">{{ entry.store.store_name if entry.store else '-' }}</div><small class="text-muted">{{ entry.city }}</small></td>
-              <td><details class="details"><summary class="fw-semibold">View details</summary><div class="mt-2 small"><div><strong>Mobile:</strong> {{ entry.mobile_number }}</div><div><strong>Address:</strong> {{ entry.address or '-' }}</div><div><strong>Email:</strong> {{ entry.email or '-' }}</div><div><strong>Aadhaar:</strong> {{ entry.aadhar_number or '-' }}</div><div><strong>PAN:</strong> {{ entry.pan_number or '-' }}</div></div></details></td>
-              <td class="text-end"><form method="post" action="/admin/queue/open/{{ entry.id }}" class="d-inline"><input type="hidden" name="city" value="{{ selected_city }}"><input type="hidden" name="store_id" value="{{ selected_store_id }}"><button type="submit" class="btn btn-outline-primary btn-sm">Reopen</button></form></td>
+              <td>
+                <details class="details">
+                  <summary class="fw-semibold">View details</summary>
+                  <div class="mt-2 small">
+                    <div><strong>Mobile:</strong> {{ entry.mobile_number }}</div>
+                    <div><strong>Address:</strong> {{ entry.address or '-' }}</div>
+                    <div><strong>Email:</strong> {{ entry.email or '-' }}</div>
+                    <div>
+                      <strong>Aadhaar:</strong> {{ entry.aadhar_number or '-' }}
+                      {% if entry.aadhar_image %}
+                        <a href="{{ entry.aadhar_image }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.72rem;">
+                          <i class="bi bi-file-earmark-image me-1"></i>View Aadhaar Image
+                        </a>
+                      {% endif %}
+                    </div>
+                    <div>
+                      <strong>PAN:</strong> {{ entry.pan_number or '-' }}
+                      {% if entry.pan_image %}
+                        <a href="{{ entry.pan_image }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size: 0.72rem;">
+                          <i class="bi bi-file-earmark-image me-1"></i>View PAN Image
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </details>
+              </td>
+              <td class="text-end"><span class="badge bg-secondary px-2 py-1">Closed</span></td>
             </tr>
             {% else %}
             <tr><td colspan="6" class="text-center py-5 text-muted">No archived entries yet.</td></tr>
