@@ -73,6 +73,7 @@ async def add_store_form(request: Request, db: Session = Depends(get_db)):
 async def add_store(
     request: Request,
     store_name: str = Form(...),
+    city: str = Form("Indore"),
     phone_number: str = Form(""),
     store_address: str = Form(...),
     store_image: UploadFile = File(None),
@@ -94,6 +95,7 @@ async def add_store(
         
         new_store = Store(
             store_name=store_name,
+            city=city.strip() if city else "Indore",
             phone_number=phone_number if phone_number else None,
             store_address=store_address,
             store_image=image_path,
@@ -138,6 +140,7 @@ async def edit_store(
     request: Request,
     store_id: int,
     store_name: str = Form(...),
+    city: str = Form("Indore"),
     phone_number: str = Form(""),
     store_address: str = Form(...),
     store_image: UploadFile = File(None),
@@ -162,6 +165,7 @@ async def edit_store(
             store.store_image = image_path
         
         store.store_name = store_name
+        store.city = city.strip() if city else "Indore"
         store.phone_number = phone_number if phone_number else None
         store.store_address = store_address
         store.youtube_link = youtube_link if youtube_link else None
@@ -356,3 +360,5 @@ async def delete_guide(request: Request, guide_id: int, db: Session = Depends(ge
         
     except Exception as e:
         return RedirectResponse(url="/admin/guides?error=delete_failed", status_code=302)
+
+

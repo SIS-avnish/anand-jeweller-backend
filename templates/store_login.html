@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Login - Anand Jewels Store Portal</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --brand-red-1: #cb2121;
+            --brand-red-2: #b11b1b;
+            --brand-gold: #d7b45a;
+            --brand-gold-light: #f5eedc;
+            --brand-cream: #fffdf9;
+            --brand-dark: #2c0e0b;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top, rgba(255, 215, 0, 0.25), transparent 45%),
+                        linear-gradient(135deg, #cb2121 0%, #a11414 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--brand-dark);
+        }
+
+        .store-login-card {
+            background: var(--brand-cream);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 28px 80px rgba(0, 0, 0, 0.4);
+            max-width: 480px;
+            width: 100%;
+            border: 1px solid rgba(215, 180, 90, 0.35);
+        }
+
+        .card-header-custom {
+            background: linear-gradient(135deg, var(--brand-red-1) 0%, var(--brand-red-2) 100%);
+            padding: 40px 30px 30px;
+            text-align: center;
+            color: #ffffff;
+            position: relative;
+            border-bottom: 3px solid var(--brand-gold);
+        }
+
+        .store-logo-img {
+            max-height: 140px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.35));
+            margin-bottom: 16px;
+        }
+
+        .portal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(215, 180, 90, 0.4);
+            color: #f7d774;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .form-panel {
+            padding: 35px 30px;
+        }
+
+        .gold-input {
+            border: 1px solid rgba(215, 180, 90, 0.4);
+            border-radius: 14px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            background: #ffffff;
+            transition: all 0.25s ease;
+        }
+
+        .gold-input:focus {
+            border-color: var(--brand-gold);
+            box-shadow: 0 0 0 4px rgba(215, 180, 90, 0.18);
+            outline: none;
+        }
+
+        .btn-store-login {
+            background: linear-gradient(135deg, #c99a2d 0%, #f1d27a 100%);
+            border: 1px solid rgba(215, 180, 90, 0.5);
+            color: #380c08;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 14px 24px;
+            border-radius: 14px;
+            box-shadow: 0 6px 20px rgba(201, 154, 45, 0.25);
+            transition: all 0.25s ease;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+
+        .btn-store-login:hover {
+            background: linear-gradient(135deg, #d8a735 0%, #f6df92 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(201, 154, 45, 0.35);
+            color: #240704;
+        }
+    </style>
+</head>
+<body>
+
+<div class="store-login-card">
+    <!-- Header -->
+    <div class="card-header-custom">
+        <div>
+            <img src="/static/images/anand_gold_flower.png" alt="Anand Gold Logo" class="store-logo-img">
+        </div>
+        <div class="portal-badge mb-2">
+            <i class="bi bi-shop"></i> Store Manager Portal
+        </div>
+        <h2 class="h4 mb-0 fw-bold" style="color: #fff6d8;">Store Account Login</h2>
+    </div>
+
+    <!-- Form Panel -->
+    <div class="form-panel">
+        {% if error %}
+        <div class="alert alert-danger border-0 shadow-sm mb-4" style="border-radius: 12px; font-size: 0.9rem;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/store/login">
+            <div class="mb-3">
+                <label for="username" class="form-label fw-semibold" style="font-size: 0.9rem;">Store Username</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0" style="border-radius: 14px 0 0 14px; border-color: rgba(215, 180, 90, 0.4);">
+                        <i class="bi bi-person-fill text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control gold-input border-start-0 ps-0" id="username" name="username" placeholder="Enter store username (e.g. indore_store)" style="border-radius: 0 14px 14px 0;" required>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="password" class="form-label fw-semibold" style="font-size: 0.9rem;">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0" style="border-radius: 14px 0 0 14px; border-color: rgba(215, 180, 90, 0.4);">
+                        <i class="bi bi-lock-fill text-muted"></i>
+                    </span>
+                    <input type="password" class="form-control gold-input border-start-0 ps-0" id="password" name="password" placeholder="Enter password" style="border-radius: 0 14px 14px 0;" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-store-login mb-3">
+                <i class="bi bi-box-arrow-in-right me-2"></i> Login to Store Portal
+            </button>
+        </form>
+
+        <div class="text-center pt-2">
+            <small class="text-muted" style="font-size: 0.8rem;">
+                <i class="bi bi-shield-check me-1 text-warning"></i> Store Manager Access Only &bull; Anand Jewels Queue System
+            </small>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -5,6 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+import queue_routes as queue
 
 # Import routers
 from routers import admin, api, stores, admin_api
@@ -54,6 +55,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(admin.router, tags=["Admin Dashboard"])
 app.include_router(admin_api.router, tags=["Admin API (JWT)"])
 app.include_router(stores.router, tags=["Store Management"])
+app.include_router(queue.router, tags=["Queue Management"])
 app.include_router(api.router, tags=["Public API"])
 @app.get("/")
 async def root():
@@ -74,10 +76,10 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     
-    print("🚀 Starting Gold Rate Management System")
-    print("📊 Admin Dashboard: http://localhost:8000/admin")
-    print("🔌 API Documentation: http://localhost:8000/docs")
-    print("💾 Default admin credentials: admin / admin123")
+    print("ðŸš€ Starting Gold Rate Management System")
+    print("ðŸ“Š Admin Dashboard: http://localhost:8000/admin")
+    print("ðŸ”Œ API Documentation: http://localhost:8000/docs")
+    print("ðŸ’¾ Default admin credentials: admin / admin123")
     
     uvicorn.run(
         "main:app", 
@@ -86,3 +88,5 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+
+

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Registration - Anand Jewels</title>
+    <!-- Google Fonts for premium design -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #cb2121;
+            --primary-dark: #b11b1b;
+            --gold: #d7b45a;
+            --gold-light: #f5eedc;
+            --cream: #fffdf9;
+            --dark: #2c0e0b;
+            --gray-muted: #7a6e6b;
+            --border-color: rgba(215, 180, 90, 0.35);
+            --radius-lg: 28px;
+            --radius-md: 16px;
+            --shadow-premium: 0 28px 80px rgba(0, 0, 0, 0.25);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top, rgba(215, 180, 90, 0.15), transparent 45%),
+                        linear-gradient(135deg, #150503 0%, #3a0d0a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: var(--dark);
+        }
+
+        .registration-card {
+            background: var(--cream);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-premium);
+            max-width: 1100px;
+            width: 100%;
+            border: 1px solid rgba(215, 180, 90, 0.25);
+        }
+
+        /* Split container layout */
+        .split-container {
+            display: flex;
+            min-height: 750px;
+        }
+
+        .brand-panel {
+            width: 40%;
+            background: linear-gradient(135deg, #cb2121 0%, #b11b1b 100%);
+            color: #ffffff;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            border-right: 4px solid var(--gold);
+        }
+
+        /* Ambient light overlay on the red panel */
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 10% 20%, rgba(215, 180, 90, 0.15) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .form-panel {
+            width: 60%;
+            padding: 50px;
+            background: var(--cream);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Brand Pill Badge */
+        .badge-pill-custom {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(215, 180, 90, 0.3);
+            color: #f9e6a9;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            width: fit-content;
+        }
+
+        .brand-title {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 3.5vw, 2.75rem);
+            line-height: 1.25;
+            color: #fff6d8;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        .brand-desc {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1.05rem;
+            line-height: 1.6;
+            font-weight: 300;
+            max-width: 32ch;
+        }
+
+        /* Premium Logo container */
+        .brand-logo-container {
+            text-align: center;
+            padding-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .brand-logo {
+            max-height: 320px;
+            width: 85%;
+            max-width: 340px;
+            object-fit: contain;
+            filter: drop-shadow(0 14px 35px rgba(0, 0, 0, 0.45));
+        }
+
+        /* Elegant gold-themed inputs */
+        .form-label {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        .gold-input {
+            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--dark);
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .gold-input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 4px rgba(215, 180, 90, 0.15);
+            outline: none;
+        }
+
+        .gold-input::placeholder {
+            color: #b5a8a4;
+        }
+
+        /* Styled Action CTA Button with Outfit font */
+        .cta-button {
+            background: linear-gradient(135deg, #c99a2d 0%, #f1d27a 100%);
+            border: 1px solid rgba(215, 180, 90, 0.4);
+            color: #380c08;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 6px 20px rgba(201, 154, 45, 0.2);
+            transition: all 0.25s ease;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(135deg, #d8a735 0%, #f6df92 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(201, 154, 45, 0.35);
+            color: #240704;
+        }
+
+        .cta-button:active {
+            transform: translateY(0);
+        }
+
+        .hint-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: #fff5dc;
+            color: #6d4e0f;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid rgba(215, 180, 90, 0.2);
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .meta-heading {
+            color: var(--gold);
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 12px;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            border: 1px solid rgba(44, 14, 11, 0.15);
+            background: #ffffff;
+            color: var(--dark);
+            text-decoration: none;
+        }
+
+        .action-btn:hover {
+            background: var(--gold-light);
+            border-color: var(--gold);
+            color: #380c08;
+            transform: translateY(-1px);
+        }
+
+        /* Captcha container styling */
+        .captcha-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .captcha-img-wrapper {
+            width: 160px;
+            flex-shrink: 0;
+        }
+
+        .captcha-img {
+            height: 48px;
+            width: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .captcha-refresh-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+            color: var(--gray-muted);
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .captcha-refresh-btn:hover {
+            background-color: var(--gold-light);
+            color: var(--dark);
+            border-color: var(--gold);
+        }
+
+        /* Grid Layout Fixes */
+        .grid-gap-y {
+            row-gap: 20px;
+        }
+
+        /* Responsive Layout Rules */
+        @media (max-width: 991px) {
+            .split-container {
+                flex-direction: column;
+                min-height: auto;
+            }
+            
+            .brand-panel {
+                width: 100%;
+                border-right: none;
+                border-bottom: 4px solid var(--gold);
+                padding: 40px 30px;
+                text-align: center;
+                align-items: center;
+            }
+            
+            .brand-title {
+                margin-top: 15px;
+                margin-bottom: 10px;
+            }
+            
+            .brand-desc {
+                margin: 0 auto;
+            }
+
+            .badge-pill-custom {
+                margin: 0 auto;
+            }
+            
+            .brand-logo-container {
+                padding-top: 30px;
+            }
+            
+            .brand-logo {
+                max-height: 240px;
+                max-width: 280px;
+            }
+            
+            .form-panel {
+                width: 100%;
+                padding: 40px 30px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            body {
+                padding: 10px;
+            }
+            .registration-card {
+                border-radius: var(--radius-md);
+            }
+            .brand-panel {
+                padding: 30px 20px;
+            }
+            .form-panel {
+                padding: 25px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container d-flex justify-content-center">
+    <div class="registration-card">
+        <div class="split-container">
+            <!-- Left Branding Panel -->
+            <div class="brand-panel text-center text-lg-start">
+                <!-- Logo Top -->
+                <div class="brand-logo-container text-center mb-3">
+                    <img src="/static/images/anand_gold_flower.png" alt="Anand Gold Logo" class="brand-logo">
+                </div>
+                
+                <!-- Text Below Logo -->
+                <div>
+                    <div class="badge-pill-custom mb-2">
+                        <i class="bi bi-gem me-1"></i> Anand Jewels Visitor Registration
+                    </div>
+                    <h1 class="brand-title mt-2">Register your visit in a few seconds</h1>
+                </div>
+            </div>
+
+            <!-- Right Form Panel -->
+            <div class="form-panel">
+                {% if error %}
+                <div class="alert alert-danger border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error }}
+                </div>
+                {% endif %}
+                
+                <form method="post" action="/queue/register" class="row grid-gap-y" id="queueForm">
+                    <div class="col-md-6">
+                        <label class="form-label">City <span class="text-danger fw-bold">*</span></label>
+                        <select class="form-select gold-input w-100" name="city" id="citySelect" required>
+                            <option value="">Select city</option>
+                            {% for city in cities %}
+                            <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>{{ city }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Store <span class="text-danger fw-bold">*</span></label>
+                        <select class="form-select gold-input w-100" name="store_id" id="storeSelect" required>
+                            <option value="">Select store</option>
+                            {% for city, stores in stores_by_city.items() %}
+                                {% for store in stores %}
+                                <option value="{{ store.id }}" data-city="{{ city }}" {% if selected_store_id == store.id %}selected{% endif %}>{{ store.store_name }}</option>
+                                {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label">Full Name <span class="text-danger fw-bold">*</span></label>
+                        <input type="text" class="form-control gold-input" name="name" value="{{ form_data.name if form_data else '' }}" placeholder="Enter full name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Mobile Number <span class="text-danger fw-bold">*</span></label>
+                        <input type="tel" class="form-control gold-input" name="mobile_number" value="{{ form_data.mobile_number if form_data else '' }}" placeholder="10 digit mobile number" required>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label class="form-label">Address <small class="text-muted fw-normal">(Optional)</small></label>
+                        <textarea class="form-control gold-input" name="address" rows="2" placeholder="Enter street address">{{ form_data.address if form_data else '' }}</textarea>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label">Email Address <small class="text-muted fw-normal">(Optional)</small></label>
+                        <input type="email" class="form-control gold-input" name="email" value="{{ form_data.email if form_data else '' }}" placeholder="name@example.com">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Aadhaar <small class="text-muted fw-normal">(Optional)</small></label>
+                        <input type="text" class="form-control gold-input" name="aadhar_number" value="{{ form_data.aadhar_number if form_data else '' }}" placeholder="12 digit Aadhaar">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">PAN Card <small class="text-muted fw-normal">(Optional)</small></label>
+                        <input type="text" class="form-control gold-input" name="pan_number" value="{{ form_data.pan_number if form_data else '' }}" placeholder="10 digit PAN">
+                    </div>
+                    
+                    <div class="col-md-5">
+                        <label class="form-label">Date & Time</label>
+                        <input type="text" class="form-control gold-input bg-light" id="liveDateTime" readonly>
+                    </div>
+                    
+                    <div class="col-md-7">
+                        <label class="form-label">Verification Captcha <span class="text-danger fw-bold">*</span></label>
+                        <div class="captcha-container mb-2">
+                            <div class="captcha-img-wrapper">
+                                <img id="captchaImage" src="/queue/captcha?ts={{ captcha_seed }}" alt="Captcha" class="captcha-img">
+                            </div>
+                            <button type="button" class="captcha-refresh-btn" id="refreshCaptcha" title="Refresh Captcha">
+                                <i class="bi bi-arrow-clockwise fs-5"></i>
+                            </button>
+                        </div>
+                        <input type="text" class="form-control gold-input" name="captcha_answer" placeholder="Enter captcha answer" required>
+                    </div>
+                    
+                    <div class="col-12 text-center pt-3">
+                        <button type="submit" class="cta-button">
+                            <i class="bi bi-send-fill me-1"></i> Register Visitor
+                        </button>
+                    </div>
+                </form>
+                
+                <hr class="my-4" style="border-color: rgba(215, 180, 90, 0.25);">
+                
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-8">
+                        <div class="meta-heading">Quick contact actions</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="tel:+910000000000" class="action-btn">
+                                <i class="bi bi-telephone-fill text-danger"></i> Call Us
+                            </a>
+                            <a href="https://maps.google.com" target="_blank" class="action-btn">
+                                <i class="bi bi-geo-alt-fill text-success"></i> Direction
+                            </a>
+                            <a href="https://wa.me/910000000000" target="_blank" class="action-btn">
+                                <i class="bi bi-whatsapp text-success"></i> WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end text-center mt-3 mt-md-0">
+                        <small class="text-muted" style="font-size: 0.8rem;">Anand Jewels Queue Management</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const citySelect = document.getElementById('citySelect');
+const storeSelect = document.getElementById('storeSelect');
+const captchaImage = document.getElementById('captchaImage');
+const refreshCaptcha = document.getElementById('refreshCaptcha');
+const liveDateTime = document.getElementById('liveDateTime');
+
+function updateDateTime() {
+    liveDateTime.value = new Date().toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'medium'
+    });
+}
+
+function filterStores() {
+    const city = citySelect.value;
+    let first = null;
+    [...storeSelect.options].forEach(option => {
+        if (!option.value) return;
+        const visible = !city || option.dataset.city === city;
+        option.hidden = !visible;
+        if (visible && !first) first = option;
+    });
+    if (storeSelect.selectedOptions.length && storeSelect.selectedOptions[0].hidden) {
+        storeSelect.value = first ? first.value : '';
+    }
+    if (!storeSelect.value && first) {
+        storeSelect.value = first.value;
+    }
+}
+
+citySelect.addEventListener('change', filterStores);
+refreshCaptcha.addEventListener('click', () => {
+    captchaImage.src = `/queue/captcha?ts=${Date.now()}`;
+});
+
+updateDateTime();
+setInterval(updateDateTime, 1000);
+filterStores();
+</script>
+</body>
+</html>

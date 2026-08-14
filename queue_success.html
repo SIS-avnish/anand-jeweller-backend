@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visitor Token - Anand Jewels</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --brand-red-1: #cb2121;
+      --brand-red-2: #d02222;
+      --brand-gold: #f59e0b;
+      --brand-gold-bright: #ffd700;
+      --brand-cream: #fffdf5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(245, 158, 11, 0.12), transparent 35%),
+        linear-gradient(180deg, #fdfbf7 0%, #f5f7fb 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 16px 12px 50px;
+    }
+
+    .token-card {
+      max-width: 460px;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      box-shadow: 0 12px 40px rgba(91, 15, 26, 0.14);
+      margin-bottom: 20px;
+    }
+
+    .token-header {
+      background: linear-gradient(135deg, var(--brand-red-1), var(--brand-red-2));
+      color: #fff6d8;
+      padding: 18px 16px 16px;
+      text-align: center;
+    }
+
+    .success-badge-icon {
+      width: 44px;
+      height: 44px;
+      background: #ffffff;
+      color: #f59e0b;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      margin-bottom: 8px;
+      border: 2px solid #fef3c7;
+    }
+
+    .header-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #ffd700;
+      margin-bottom: 2px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .card-body-compact {
+      padding: 14px 14px 16px;
+    }
+
+    .store-info-bar {
+      background: #fff9eb;
+      border: 1px solid #f3e2b4;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .token-display-box {
+      background: linear-gradient(135deg, #fffcf5, #fff5dc);
+      border: 2px dashed #e2c068;
+      border-radius: 14px;
+      padding: 12px 8px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .token-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #b8860b;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .token-number {
+      font-size: clamp(2.2rem, 7vw, 3.2rem);
+      font-weight: 900;
+      color: var(--brand-red-1);
+      letter-spacing: 1px;
+      line-height: 1.1;
+      margin: 2px 0;
+      text-shadow: 1px 1px 0px rgba(215, 180, 90, 0.4);
+    }
+
+    .visitor-details-grid {
+      background: #fafafa;
+      border: 1px solid #eeeeee;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .detail-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 2px;
+    }
+
+    .detail-value {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #1f2937;
+      line-height: 1.2;
+    }
+
+    .status-badge-open {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+
+    .token-card-footer {
+      background: linear-gradient(135deg, var(--brand-red-1), var(--brand-red-2));
+      border-top: 2px solid var(--brand-gold);
+      padding: 24px 16px;
+      text-align: center;
+    }
+
+    .token-card-footer img {
+      height: 125px;
+      max-width: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.35));
+    }
+
+    @media print {
+      body { background: none; padding: 0; }
+      .token-card { box-shadow: none; border: none; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main Token Ticket Card -->
+  <div class="token-card">
+    <!-- Top Red Header -->
+    <div class="token-header">
+      <div class="success-badge-icon">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <div class="header-title">Visitor Registered Successfully</div>
+      <small style="color: #fff6d8; opacity: 0.95; font-size: 0.78rem;">Show this token at the store counter</small>
+    </div>
+
+    <div class="card-body-compact">
+      <!-- Store & Date/Time Bar -->
+      <div class="store-info-bar">
+        <div class="row text-center g-2 align-items-center">
+          <div class="col-7 border-end text-start ps-2">
+            <div class="detail-label"><i class="bi bi-shop me-1"></i>Store & Location</div>
+            <div class="detail-value fw-bold" style="word-break: break-word; font-size: 0.88rem; line-height: 1.25;">{{ store.store_name if store else entry.city }}</div>
+            <small class="text-muted d-block fw-semibold mt-1" style="font-size: 0.76rem; word-break: break-word;">{{ store.location if (store and store.location) else entry.city }}</small>
+          </div>
+          <div class="col-5 text-end pe-2">
+            <div class="detail-label"><i class="bi bi-clock-history me-1"></i>Date & Time (IST)</div>
+            <div class="detail-value" style="font-size: 0.82rem;">{{ (ist_created_at or entry.created_at).strftime('%d %b %Y') }}</div>
+            <div class="fw-bold" style="font-size: 0.8rem; color: #b8860b !important;">{{ (ist_created_at or entry.created_at).strftime('%I:%M %p') }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Token Number Box -->
+      <div class="token-display-box">
+        <div class="token-label">YOUR TOKEN NUMBER</div>
+        <div class="token-number">{{ entry.token }}</div>
+        <div class="text-muted" style="font-size: 0.72rem;"><i class="bi bi-info-circle me-1"></i>Please wait for your token to be called</div>
+      </div>
+
+      <!-- Visitor Details & Status -->
+      <div class="visitor-details-grid">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="detail-label">Visitor Name</div>
+            <div class="detail-value" style="word-break: break-word;">{{ entry.name }}</div>
+          </div>
+          <div class="col-6 text-end">
+            <div class="detail-label">Mobile Number</div>
+            <div class="detail-value">{{ entry.mobile_number }}</div>
+          </div>
+          <div class="col-6 mt-1">
+            <div class="detail-label">City</div>
+            <div class="detail-value" style="word-break: break-word;">{{ entry.city }}</div>
+          </div>
+          <div class="col-6 mt-1 text-end">
+            <div class="detail-label">Status</div>
+            <span class="status-badge-open">
+              <i class="bi bi-record-fill me-1"></i>{{ entry.status }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Red Bottom Footer Banner with Anand Gold Lotus Emblem Logo -->
+    <div class="token-card-footer">
+      <img src="/static/images/anand_gold_flower.png" alt="Anand Gold Emblem Logo">
+    </div>
+  </div>
+
+</body>
+</html>

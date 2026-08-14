@@ -1,11 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, UniqueConstraint, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, UniqueConstraint, Text, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from database import Base
 from enum import Enum
 
 class UserRole(Enum):
     SUPER_ADMIN = "super_admin"
     CONTACT_MANAGER = "contact_manager"
+    STORE_ADMIN = "store_admin"
 
 class AdminUser(Base):
     __tablename__ = "admin_users"
@@ -14,7 +16,10 @@ class AdminUser(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="super_admin")  # Store as string to avoid SQLAlchemy enum issues
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True)  # Associated store for store_admin
     created_at = Column(DateTime, default=func.now(), nullable=False)
+    
+    store = relationship("Store", backref="admins")
     
     @property
     def role_enum(self):
@@ -64,6 +69,7 @@ class Store(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     store_name = Column(String, nullable=False)
+    city = Column(String, nullable=False, default="Indore")
     phone_number = Column(String, nullable=True)
     store_address = Column(Text, nullable=False)
     store_image = Column(String, nullable=True)  # URL/Path to store image
@@ -251,3 +257,31 @@ class SilverRate(Base):
 
     def __repr__(self):
         return f"<SilverRate(835: ₹{self.silver_835_rate}, 925: ₹{self.silver_925_rate}, 990: ₹{self.silver_990_rate}, released: {self.release_datetime})>"
+
+class QueueEntry(Base):
+    __tablename__ = "queue_entries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
+    city = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    address = Column(String, nullable=True)
+    mobile_number = Column(String, nullable=False, index=True)
+    email = Column(String, nullable=True)
+    aadhar_number = Column(String, nullable=True)
+    pan_number = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    status = Column(String, default="open", nullable=False)  # "open" or "closed"
+    token = Column(String, nullable=False, index=True)
+    
+    store = relationship("Store", backref="queue_entries")
+    
+    @property
+    def created_at_ist(self):
+        if self.created_at:
+            from datetime import timedelta
+            return self.created_at + timedelta(hours=5, minutes=30)
+        return self.created_at
+
+    def __repr__(self):
+        return f"<QueueEntry(token='{self.token}', name='{self.name}', status='{self.status}')>"

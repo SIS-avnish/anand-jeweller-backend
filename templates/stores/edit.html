@@ -45,6 +45,12 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
+                                <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="city" name="city"
+                                       value="{{ store.city or 'Indore' }}" required>
+                            </div>
+                        </div>
+                        <div class="row">
                                 <label for="phone_number" class="form-label">Phone Number</label>
                                 <input type="tel" class="form-control" id="phone_number" name="phone_number" 
                                        value="{{ store.phone_number or '' }}" placeholder="e.g., +91 9876543210">
@@ -241,3 +247,6 @@
     </div>
 </div>
 {% endblock %}
+
+
+

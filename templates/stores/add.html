@@ -37,13 +37,20 @@
                     {% endif %}
                     
                     <form method="post" action="/admin/stores/add" enctype="multipart/form-data">
-                        <div class="row">
+                                                <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="store_name" class="form-label">Store Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="store_name" name="store_name" 
                                        placeholder="e.g., Anand Jewels - Main Branch" required>
                             </div>
                             
+                            <div class="col-md-6 mb-3">
+                                <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="city" name="city" 
+                                       placeholder="e.g., Indore" value="Indore" required>
+                            </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="phone_number" class="form-label">Phone Number</label>
                                 <input type="tel" class="form-control" id="phone_number" name="phone_number" 
@@ -189,3 +196,6 @@
     </div>
 </div>
 {% endblock %}
+
+
+

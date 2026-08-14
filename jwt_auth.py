@@ -139,12 +139,14 @@ async def require_admin_auth(request: Request, db: Session = Depends(get_db)) ->
     user = await get_current_user_web(request, db)
     
     if not user:
+        if "/queue" in request.url.path or "city" in request.query_params or "store_id" in request.query_params:
+            raise HTTPException(
+                status_code=status.HTTP_302_FOUND,
+                headers={"Location": "/store/login"}
+            )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            status_code=status.HTTP_302_FOUND,
+            headers={"Location": "/admin/login"}
         )
-    
-    # AdminUser model doesn't have is_active field, so we skip this check
-    # All authenticated users are considered active
     
     return user

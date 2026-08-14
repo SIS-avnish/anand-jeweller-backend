@@ -193,13 +193,21 @@ async def login(
     
     # Store token in session for JavaScript access
     request.session["jwt_token"] = access_token
+
+    if user.role == UserRole.STORE_ADMIN.value and user.store_id:
+        store = db.query(Store).filter(Store.id == user.store_id).first()
+        city = store.city if store else ""
+        return RedirectResponse(url=f"/admin/queue?city={city}&store_id={user.store_id}", status_code=302)
     
     return RedirectResponse(url="/admin", status_code=302)
 
 # Logout
 @router.get("/admin/logout")
 async def logout(request: Request):
+    user_role = request.session.get("user_role")
     logout_user(request)
+    if user_role == UserRole.STORE_ADMIN.value:
+        return RedirectResponse(url="/store/login", status_code=302)
     return RedirectResponse(url="/admin/login", status_code=302)
 
 # Dashboard home
@@ -210,6 +218,11 @@ async def admin_dashboard(
     current_user: AdminUser = Depends(require_admin_auth)
 ):
     print(f"Dashboard: User {current_user.username} with role {current_user.role}")  # Debug logging
+    
+    if current_user.role == UserRole.STORE_ADMIN.value and current_user.store_id:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        city = store.city if store else ""
+        return RedirectResponse(url=f"/admin/queue?city={city}&store_id={current_user.store_id}", status_code=302)
     
     # Check user role and show appropriate dashboard
     if current_user.role == UserRole.CONTACT_MANAGER.value:
