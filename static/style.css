@@ -125,10 +125,10 @@ body {
 @media (min-width: 768px) {
     .sidebar,
     .sidebar-shell {
-        flex: 0 0 270px !important;
-        width: 270px !important;
-        min-width: 270px !important;
-        max-width: 270px !important;
+        flex: 0 0 260px !important;
+        width: 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
     }
 }
 
@@ -175,10 +175,134 @@ body {
     color: #1a1a1a !important;
 }
 
-/* Mobile Sidebar */
-.offcanvas-header.sidebar,
-.offcanvas-body.sidebar {
-    background: linear-gradient(180deg, var(--primary), #B91C1C);
+/* ===================================
+   MOBILE SIDEBAR (OFFCANVAS) THEME
+   ================================= */
+#mobileSidebar,
+#mobileSidebar.offcanvas,
+.offcanvas-mobile-sidebar {
+    background: linear-gradient(180deg, #cb2121, #b91c1c) !important;
+    background-color: #cb2121 !important;
+    color: #ffffff !important;
+    border-right: 3px solid var(--secondary) !important;
+    max-width: 290px;
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+}
+
+#mobileSidebar .offcanvas-header,
+.mobile-sidebar-header {
+    background: rgba(0, 0, 0, 0.15) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+    padding: 1.1rem 1.25rem !important;
+    flex-shrink: 0 !important;
+}
+
+#mobileSidebar .offcanvas-title {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 1.15rem;
+}
+
+#mobileSidebar .offcanvas-body,
+.mobile-sidebar-body {
+    background: transparent !important;
+    padding: 1rem !important;
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    max-height: calc(100vh - 75px) !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+    padding-bottom: 2.5rem !important;
+}
+
+#mobileSidebar .offcanvas-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#mobileSidebar .offcanvas-body::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+}
+
+#mobileSidebar .offcanvas-body::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.6);
+    border-radius: 10px;
+}
+
+/* User profile card inside offcanvas */
+#mobileSidebar .user-profile-mobile {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+#mobileSidebar .user-profile-mobile .fw-semibold {
+    color: #ffffff !important;
+}
+
+#mobileSidebar .btn-logout {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    border-radius: 8px !important;
+    font-size: 0.825rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+#mobileSidebar .btn-logout:hover {
+    background: #ffffff !important;
+    color: #cb2121 !important;
+}
+
+/* Nav links in mobile sidebar */
+#mobileSidebar .nav-pills .nav-link,
+.mobile-sidebar-body .nav-link {
+    color: #ffffff !important;
+    padding: 12px 16px !important;
+    border-radius: 12px !important;
+    margin-bottom: 8px !important;
+    transition: all 0.2s ease;
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: transparent !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+#mobileSidebar .nav-pills .nav-link i,
+.mobile-sidebar-body .nav-link i {
+    color: #ffffff !important;
+    font-size: 1.15rem;
+}
+
+#mobileSidebar .nav-pills .nav-link:hover,
+.mobile-sidebar-body .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    transform: translateX(4px);
+}
+
+/* Active Nav Link in Gold Gradient */
+#mobileSidebar .nav-pills .nav-link.active,
+.mobile-sidebar-body .nav-link.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: #1a1a1a !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45) !important;
+}
+
+#mobileSidebar .nav-pills .nav-link.active i,
+.mobile-sidebar-body .nav-link.active i {
+    color: #1a1a1a !important;
 }
 
 /* ===================================
@@ -782,6 +906,14 @@ body {
     min-height: calc(100vh - 56px);
     padding: 20px;
     background-color: #f8f9fa;
+}
+
+@media (min-width: 768px) {
+    .main-content {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 260px) !important;
+    }
 }
 
 .sidebar-height {
