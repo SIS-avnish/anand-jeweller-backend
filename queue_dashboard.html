@@ -157,6 +157,8 @@
 </div>
 {% endif %}
 
+<!-- Search Bar temporarily hidden -->
+{% if false %}
 <div class="soft p-3 p-lg-4 mb-4" style="background: #ffffff; border-radius: 20px;">
   <form method="get" action="/admin/queue" class="row g-3 align-items-end">
     {% if is_super_admin %}
@@ -201,6 +203,7 @@
     </div>
   </form>
 </div>
+{% endif %}
 
 {% if search_query and (active_entries|length == 0) and (closed_entries|length == 0) %}
 <!-- Visitor Not Found Toast Notification -->
@@ -227,14 +230,26 @@
 {% endif %}
 
 <ul class="nav nav-tabs mb-3">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#active-pane" type="button">Active Queue</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#archive-pane" type="button">Archive (Closed)</button></li>
+  {% if is_store_admin or selected_store_id or selected_city or search_query %}
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#active-pane" type="button">Active Queue</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#archive-pane" type="button">Archive (Closed)</button>
+  </li>
+  {% endif %}
+
   {% if is_super_admin %}
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#admins-pane" type="button">Location Accounts</button></li>
+  <li class="nav-item">
+    <button class="nav-link {% if not (is_store_admin or selected_store_id or selected_city or search_query) %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#admins-pane" type="button">
+      <i class="bi bi-geo-alt-fill me-1 text-warning"></i>Location Accounts
+    </button>
+  </li>
   {% endif %}
 </ul>
 
 <div class="tab-content">
+  {% if is_store_admin or selected_store_id or selected_city or search_query %}
   <div class="tab-pane fade show active" id="active-pane">
     <div class="soft">
       <div class="table-responsive">
@@ -332,9 +347,10 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   {% if is_super_admin %}
-  <div class="tab-pane fade" id="admins-pane">
+  <div class="tab-pane fade {% if not (is_store_admin or selected_store_id or selected_city or search_query) %}show active{% endif %}" id="admins-pane">
     <!-- Create Store Account Card -->
     <div class="soft p-4 mb-4" style="background: #fdfbf7; border-color: rgba(215, 180, 90, 0.4);">
       <div class="d-flex align-items-center gap-2 mb-3">
