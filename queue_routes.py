@@ -1,3 +1,6 @@
+import csv
+import html
+import io
 import os
 import uuid
 from collections import defaultdict
@@ -170,11 +173,12 @@ async def queue_captcha(request: Request):
 async def register_page(request: Request, db: Session = Depends(get_db), city: Optional[str] = None, store_id: Optional[int] = None):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
     grouped = _group(stores)
+    default_city = city or ('Indore' if 'Indore' in grouped else next(iter(grouped.keys()), ''))
     return templates.TemplateResponse('queue_register.html', {
         'request': request,
         'stores_by_city': grouped,
         'cities': list(grouped.keys()),
-        'selected_city': city or next(iter(grouped.keys()), ''),
+        'selected_city': default_city,
         'selected_store_id': int(store_id) if store_id else '',
         'captcha_seed': datetime.now().timestamp(),
     })
@@ -370,6 +374,131 @@ async def queue_dashboard(
         'is_super_admin': current_user.role == UserRole.SUPER_ADMIN.value,
         'is_store_admin': current_user.role == UserRole.STORE_ADMIN.value,
     })
+
+
+@router.get('/admin/queue/export')
+async def export_queue_excel(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+    status: Optional[str] = 'all',
+    city: Optional[str] = None,
+    store_id: Optional[str] = None,
+    search: Optional[str] = None,
+):
+    selected_store_id = _optional_int(store_id)
+    search_clean = (search or '').strip()
+
+    if current_user.role == UserRole.STORE_ADMIN.value:
+        if not current_user.store_id:
+            raise HTTPException(status_code=403, detail='Store admin is not linked to a store')
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        city = store.city if store else ""
+        selected_store_id = current_user.store_id
+
+    query = db.query(QueueEntry)
+    if city:
+        query = query.filter(QueueEntry.city == city)
+    if selected_store_id is not None:
+        query = query.filter(QueueEntry.store_id == selected_store_id)
+    if search_clean:
+        term = f"%{search_clean}%"
+        query = query.filter(
+            or_(
+                QueueEntry.name.ilike(term),
+                QueueEntry.mobile_number.ilike(term),
+                QueueEntry.aadhar_number.ilike(term),
+                QueueEntry.pan_number.ilike(term),
+                QueueEntry.token.ilike(term),
+            )
+        )
+    if current_user.role == UserRole.STORE_ADMIN.value:
+        query = query.filter(QueueEntry.store_id == current_user.store_id)
+
+    if status == 'open':
+        query = query.filter(QueueEntry.status == 'open')
+    elif status == 'closed':
+        query = query.filter(QueueEntry.status == 'closed')
+
+    entries = query.order_by(desc(QueueEntry.created_at)).all()
+
+    # Headers for Excel export
+    headers = [
+        "S.No.",
+        "Token",
+        "Date & Time (IST)",
+        "Visitor Name",
+        "Mobile Number",
+        "City",
+        "Store Name",
+        "Address",
+        "Email",
+        "Aadhaar Number",
+        "PAN Number",
+        "Status",
+    ]
+
+    rows = []
+    for idx, entry in enumerate(entries, start=1):
+        ist_time = entry.created_at_ist.strftime('%d %b %Y %I:%M %p') if entry.created_at_ist else ''
+        store_name = entry.store.store_name if entry.store else ''
+        status_label = "Active (Waiting)" if entry.status == 'open' else "Closed (Completed)"
+        rows.append([
+            idx,
+            entry.token or '',
+            ist_time,
+            entry.name or '',
+            entry.mobile_number or '',
+            entry.city or '',
+            store_name,
+            entry.address or '',
+            entry.email or '',
+            entry.aadhar_number or '',
+            entry.pan_number or '',
+            status_label,
+        ])
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    status_tag = status if status in ['open', 'closed'] else 'all'
+    filename_prefix = f"Queue_Entries_{status_tag}_{timestamp}"
+
+    # Generate native Excel XML/HTML (.xls) directly using Python built-in standard library (zero third-party dependencies required)
+    html_parts = [
+        '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">',
+        '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">',
+        '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>',
+        f'<x:Name>Queue Entries</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>',
+        '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->',
+        '<style>',
+        '  table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }',
+        '  th { background-color: #cb2121; color: #ffffff; font-weight: bold; border: 1px solid #d0d0d0; padding: 8px; text-align: center; }',
+        '  td { border: 1px solid #d0d0d0; padding: 6px; text-align: left; vertical-align: middle; }',
+        '  .center { text-align: center; }',
+        '  .title-row { background-color: #8b0000; color: #ffffff; font-size: 14pt; font-weight: bold; text-align: center; padding: 12px; }',
+        '  .alt { background-color: #fdfbf7; }',
+        '</style></head><body>',
+        '<table>',
+        f'  <tr><td colspan="{len(headers)}" class="title-row">Anand Jewels - Queue Entries ({status_tag.upper()})</td></tr>',
+        '  <tr>' + ''.join(f'<th>{html.escape(h)}</th>' for h in headers) + '</tr>'
+    ]
+
+    for r_idx, row_data in enumerate(rows, start=1):
+        alt_class = ' class="alt"' if r_idx % 2 == 0 else ''
+        cells = []
+        for c_idx, val in enumerate(row_data, start=1):
+            val_str = html.escape(str(val or ''))
+            align_class = ' class="center"' if c_idx in [1, 2, 3, 5, 6, 10, 11, 12] else ''
+            cells.append(f'<td{align_class}>{val_str}</td>')
+        html_parts.append(f'  <tr{alt_class}>' + ''.join(cells) + '</tr>')
+
+    html_parts.append('</table></body></html>')
+    excel_content = '\n'.join(html_parts).encode('utf-8')
+
+    return Response(
+        content=excel_content,
+        media_type="application/vnd.ms-excel",
+        headers={"Content-Disposition": f'attachment; filename="{filename_prefix}.xls"'}
+    )
 
 
 @router.post('/admin/queue/close/{entry_id}')
