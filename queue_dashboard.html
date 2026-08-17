@@ -51,12 +51,9 @@
         </div>
       </div>
     </div>
-    <div class="col-lg-5 text-lg-end d-flex align-items-center justify-content-lg-end gap-2 flex-wrap mt-3 mt-lg-0">
-      <span class="badge bg-light text-dark">Active Waiting: {{ active_entries|length }}</span>
-      <span class="badge bg-warning text-dark me-2">Archive: {{ closed_entries|length }}</span>
-      <a href="/admin/queue/export?status=all{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_store_id %}&store_id={{ selected_store_id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-light text-dark btn-sm fw-semibold shadow-sm border">
-        <i class="bi bi-file-earmark-excel-fill text-success me-1"></i> Export All Excel
-      </a>
+    <div class="col-lg-4 text-lg-end">
+      <span class="badge bg-light text-dark me-2">Active Waiting: {{ active_entries|length }}</span>
+      <span class="badge bg-warning text-dark">Archive: {{ closed_entries|length }}</span>
     </div>
   </div>
 </div>
