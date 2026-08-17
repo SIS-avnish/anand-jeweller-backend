@@ -462,43 +462,42 @@ async def export_queue_excel(
     status_tag = status if status in ['open', 'closed'] else 'all'
     filename_prefix = f"Queue_Entries_{status_tag}_{timestamp}"
 
-    # Generate native Excel XML/HTML (.xls) directly using Python built-in standard library (zero third-party dependencies required)
-    html_parts = [
-        '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">',
-        '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">',
-        '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>',
-        f'<x:Name>Queue Entries</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>',
-        '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->',
-        '<style>',
-        '  table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }',
-        '  th { background-color: #cb2121; color: #ffffff; font-weight: bold; border: 1px solid #d0d0d0; padding: 8px; text-align: center; }',
-        '  td { border: 1px solid #d0d0d0; padding: 6px; text-align: left; vertical-align: middle; }',
-        '  .center { text-align: center; }',
-        '  .title-row { background-color: #8b0000; color: #ffffff; font-size: 14pt; font-weight: bold; text-align: center; padding: 12px; }',
-        '  .alt { background-color: #fdfbf7; }',
-        '</style></head><body>',
-        '<table>',
-        f'  <tr><td colspan="{len(headers)}" class="title-row">Anand Jewels - Queue Entries ({status_tag.upper()})</td></tr>',
-        '  <tr>' + ''.join(f'<th>{html.escape(h)}</th>' for h in headers) + '</tr>'
-    ]
+    # Generate simple unformatted .xlsx Excel file using openpyxl
+    try:
+        import openpyxl
 
-    for r_idx, row_data in enumerate(rows, start=1):
-        alt_class = ' class="alt"' if r_idx % 2 == 0 else ''
-        cells = []
-        for c_idx, val in enumerate(row_data, start=1):
-            val_str = html.escape(str(val or ''))
-            align_class = ' class="center"' if c_idx in [1, 2, 3, 5, 6, 10, 11, 12] else ''
-            cells.append(f'<td{align_class}>{val_str}</td>')
-        html_parts.append(f'  <tr{alt_class}>' + ''.join(cells) + '</tr>')
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Queue Entries"
 
-    html_parts.append('</table></body></html>')
-    excel_content = '\n'.join(html_parts).encode('utf-8')
+        # Header Row (Row 1)
+        ws.append(headers)
 
-    return Response(
-        content=excel_content,
-        media_type="application/vnd.ms-excel",
-        headers={"Content-Disposition": f'attachment; filename="{filename_prefix}.xls"'}
-    )
+        # Data Rows (Row 2 onwards)
+        for row_data in rows:
+            ws.append(row_data)
+
+        stream = io.BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+        return Response(
+            content=stream.getvalue(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename_prefix}.xlsx"'}
+        )
+    except ImportError:
+        # Fallback to UTF-8 BOM CSV if openpyxl is not installed
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        writer.writerows(rows)
+        csv_bytes = "\ufeff".encode('utf-8') + output.getvalue().encode('utf-8')
+
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename_prefix}.csv"'}
+        )
 
 
 @router.post('/admin/queue/close/{entry_id}')
