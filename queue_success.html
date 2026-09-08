@@ -217,6 +217,11 @@
     </div>
 
     <div class="card-body-compact">
+      {% if queue_message %}
+      <div class="alert alert-warning mb-3 py-2 text-center" style="font-size: 0.85rem; font-weight: 600; border-radius: 10px;">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ queue_message }}
+      </div>
+      {% endif %}
       <!-- Store & Date/Time Bar -->
       <div class="store-info-bar">
         <div class="row text-center g-2 align-items-center">

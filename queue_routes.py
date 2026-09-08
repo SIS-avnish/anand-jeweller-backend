@@ -142,31 +142,7 @@ def _token(db: Session, city: str) -> str:
     return f"{_code(city)}-{today_count + 1:03d}"
 
 
-def _captcha_svg(question: str, seed: int) -> str:
-    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="220" height="72" viewBox="0 0 220 72">
-  <defs>
-    <linearGradient id="g" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#7f1020"/>
-      <stop offset="100%" stop-color="#b88714"/>
-    </linearGradient>
-  </defs>
-  <rect width="220" height="72" rx="14" fill="url(#g)"/>
-  <circle cx="{42 + seed % 12}" cy="{22 + seed % 8}" r="18" fill="rgba(255,255,255,0.08)"/>
-  <circle cx="{150 + seed % 18}" cy="{36 + seed % 10}" r="10" fill="rgba(255,215,0,0.12)"/>
-  <text x="50%" y="49%" dominant-baseline="middle" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#f7d774" letter-spacing="2">{question}</text>
-</svg>'''
 
-
-@router.get('/queue/captcha')
-async def queue_captcha(request: Request):
-    a, b = random.randint(2, 9), random.randint(1, 9)
-    op = random.choice(['+', '-'])
-    if op == '-' and b > a:
-        a, b = b, a
-    ans = a + b if op == '+' else a - b
-    q = f'{a} {op} {b} = ?'
-    request.session['queue_captcha_answer'] = str(ans)
-    return Response(_captcha_svg(q, random.randint(1000, 9999)), media_type='image/svg+xml')
 
 
 @router.get('/queue/register', response_class=HTMLResponse)
@@ -180,7 +156,6 @@ async def register_page(request: Request, db: Session = Depends(get_db), city: O
         'cities': list(grouped.keys()),
         'selected_city': default_city,
         'selected_store_id': int(store_id) if store_id else '',
-        'captcha_seed': datetime.now().timestamp(),
     })
 
 
@@ -194,10 +169,10 @@ async def register_visitor(
     mobile_number: str = Form(...),
     email: str = Form(''),
     aadhar_number: str = Form(''),
-    pan_number: str = Form(''),
-    captcha_answer: str = Form(...),
     aadhar_image: Optional[UploadFile] = File(None),
+    pan_number: str = Form(''),
     pan_image: Optional[UploadFile] = File(None),
+    cf_turnstile_response: Optional[str] = Form(None, alias="cf-turnstile-response"),
     db: Session = Depends(get_db),
 ):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
@@ -209,28 +184,67 @@ async def register_visitor(
             'request': request,
             'stores_by_city': grouped,
             'cities': list(grouped.keys()),
-            'selected_city': city,
-            'selected_store_id': store_id,
+            'selected_city': '',
+            'selected_store_id': '',
             'error': msg,
-            'form_data': {'name': name, 'address': address, 'mobile_number': mobile_number, 'email': email, 'aadhar_number': aadhar_number, 'pan_number': pan_number},
-            'captcha_seed': datetime.now().timestamp(),
+            'form_data': None,
         })
 
-    print(f"[DEBUG] Session Captcha: {request.session.get('queue_captcha_answer')} | Submitted: {captcha_answer.strip()}")
-    if request.session.get('queue_captcha_answer') != captcha_answer.strip():
-        return error('Captcha did not match. Please try again.')
+    if not cf_turnstile_response:
+        return error('Please complete the security check (Cloudflare Turnstile).')
+
+    import urllib.request
+    import urllib.parse
+    import json
+    
+    TURNSTILE_SECRET = os.environ.get('TURNSTILE_SECRET_KEY', '0x4AAAAAAEsa4ddgvQzVfXsD6AeyW0P_Q6M')
+    turnstile_data = urllib.parse.urlencode({
+        'secret': TURNSTILE_SECRET,
+        'response': cf_turnstile_response
+    }).encode('utf-8')
+    try:
+        req = urllib.request.Request('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=turnstile_data, method='POST')
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            if not result.get('success'):
+                error_codes = result.get('error-codes', [])
+                return error(f'Security check failed. Reason: {error_codes}. Please refresh and try again.')
+    except Exception as e:
+        print(f"Turnstile Error: {e}")
+        return error('Could not verify security check. Please try again.')
+
     if not store or store.city != city:
         return error('Please choose a valid store for the selected city.')
 
     mobile = _mobile(mobile_number)
-    if len(mobile) < 10 or len(mobile) > 15:
-        return error('Please enter a valid mobile number.')
+    if len(mobile) != 10:
+        return error('Please enter a valid 10-digit mobile number.')
     if len(name.strip()) < 2:
         return error('Please enter the visitor name.')
 
     # Save optional document uploads
     aadhar_img_url = await _save_uploaded_file(aadhar_image, "aadhar")
     pan_img_url = await _save_uploaded_file(pan_image, "pan")
+
+    # Check for existing registration within the last 30 minutes for this mobile at this store
+    thirty_mins_ago_utc = datetime.utcnow() - timedelta(minutes=30)
+    existing_entry = db.query(QueueEntry).filter(
+        QueueEntry.mobile_number == mobile,
+        QueueEntry.store_id == store.id,
+        QueueEntry.created_at >= thirty_mins_ago_utc,
+        QueueEntry.status == 'open'
+    ).order_by(QueueEntry.created_at.desc()).first()
+
+    if existing_entry:
+        if existing_entry.created_at:
+            ist_created_at = existing_entry.created_at + timedelta(hours=5, minutes=30)
+            time_str = ist_created_at.strftime('%I:%M %p on %d %b %Y')
+        else:
+            time_str = "recently"
+        msg = f"Your number is already registered in Queue at {time_str}. You can submit another request after 30 mins."
+        request.session['queue_last_entry_id'] = existing_entry.id
+        request.session['queue_message'] = msg
+        return RedirectResponse(url='/queue/success', status_code=302)
 
     entry = QueueEntry(
         store_id=store.id,
@@ -256,6 +270,8 @@ async def register_visitor(
 @router.get('/queue/success', response_class=HTMLResponse)
 async def success_page(request: Request, db: Session = Depends(get_db)):
     entry_id = request.session.get('queue_last_entry_id')
+    queue_message = request.session.pop('queue_message', None)
+
     if not entry_id:
         return RedirectResponse(url='/queue/register', status_code=302)
     entry = db.query(QueueEntry).filter(QueueEntry.id == entry_id).first()
@@ -268,6 +284,7 @@ async def success_page(request: Request, db: Session = Depends(get_db)):
         'entry': entry,
         'store': store,
         'ist_created_at': ist_created_at,
+        'queue_message': queue_message,
     })
 
 

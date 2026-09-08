@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         :root {
             --primary: #cb2121;
@@ -236,45 +237,6 @@
             transform: translateY(-1px);
         }
 
-        /* Captcha container styling */
-        .captcha-container {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .captcha-img-wrapper {
-            width: 160px;
-            flex-shrink: 0;
-        }
-
-        .captcha-img {
-            height: 48px;
-            width: 100%;
-            object-fit: cover;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-        }
-
-        .captcha-refresh-btn {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid var(--border-color);
-            background-color: #ffffff;
-            color: var(--gray-muted);
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-
-        .captcha-refresh-btn:hover {
-            background-color: var(--gold-light);
-            color: var(--dark);
-            border-color: var(--gold);
-        }
 
         /* Grid Layout Fixes */
         .grid-gap-y {
@@ -397,7 +359,7 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Mobile Number <span class="text-danger fw-bold">*</span></label>
-                        <input type="tel" class="form-control gold-input" name="mobile_number" value="{{ form_data.mobile_number if form_data else '' }}" placeholder="10 digit mobile number" required>
+                        <input type="tel" class="form-control gold-input" name="mobile_number" value="{{ form_data.mobile_number if form_data else '' }}" placeholder="10 digit mobile number" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Please enter exactly 10 digits" required>
                     </div>
                     
                     <div class="col-12">
@@ -428,16 +390,8 @@
                     </div>
                     
                     <div class="col-md-7">
-                        <label class="form-label">Verification Captcha <span class="text-danger fw-bold">*</span></label>
-                        <div class="captcha-container mb-2">
-                            <div class="captcha-img-wrapper">
-                                <img id="captchaImage" src="/queue/captcha?ts={{ captcha_seed }}" alt="Captcha" class="captcha-img">
-                            </div>
-                            <button type="button" class="captcha-refresh-btn" id="refreshCaptcha" title="Refresh Captcha">
-                                <i class="bi bi-arrow-clockwise fs-5"></i>
-                            </button>
-                        </div>
-                        <input type="text" class="form-control gold-input" name="captcha_answer" placeholder="Enter captcha answer" required>
+                        <label class="form-label">Security Check <span class="text-danger fw-bold">*</span></label>
+                        <div class="cf-turnstile" data-sitekey="0x4AAAAAAEsa4SHftPaHLjzJ" data-theme="light"></div>
                     </div>
                     
                     <div class="col-12 text-center pt-3">
@@ -454,8 +408,6 @@
 <script>
 const citySelect = document.getElementById('citySelect');
 const storeSelect = document.getElementById('storeSelect');
-const captchaImage = document.getElementById('captchaImage');
-const refreshCaptcha = document.getElementById('refreshCaptcha');
 const liveDateTime = document.getElementById('liveDateTime');
 
 function updateDateTime() {
@@ -483,9 +435,17 @@ function filterStores() {
 }
 
 citySelect.addEventListener('change', filterStores);
-refreshCaptcha.addEventListener('click', () => {
-    captchaImage.src = `/queue/captcha?ts=${Date.now()}`;
-});
+
+const queueForm = document.getElementById('queueForm');
+if (queueForm) {
+    queueForm.addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Registering...';
+        }
+    });
+}
 
 updateDateTime();
 setInterval(updateDateTime, 1000);
