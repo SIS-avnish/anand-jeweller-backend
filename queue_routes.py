@@ -149,12 +149,32 @@ def _token(db: Session, city: str) -> str:
 async def register_page(request: Request, db: Session = Depends(get_db), city: Optional[str] = None, store_id: Optional[int] = None):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
     grouped = _group(stores)
-    default_city = city or ('Indore' if 'Indore' in grouped else next(iter(grouped.keys()), ''))
+    
+    # 1. Determine requested city from `city` query param or standalone query flag (e.g., ?raipur, ?indore, ?bhopal)
+    requested_city = city
+    if not requested_city:
+        for key in request.query_params.keys():
+            if key and key.lower() not in ('store_id', 'search'):
+                requested_city = key
+                break
+
+    # 2. Match case-insensitively with available cities in database
+    selected_city = ''
+    if requested_city:
+        req_clean = requested_city.strip().lower()
+        for available_city in grouped.keys():
+            if available_city.lower() == req_clean:
+                selected_city = available_city
+                break
+
+    if not selected_city:
+        selected_city = 'Indore' if 'Indore' in grouped else next(iter(grouped.keys()), '')
+
     return templates.TemplateResponse('queue_register.html', {
         'request': request,
         'stores_by_city': grouped,
         'cities': list(grouped.keys()),
-        'selected_city': default_city,
+        'selected_city': selected_city,
         'selected_store_id': int(store_id) if store_id else '',
     })
 
