@@ -331,7 +331,7 @@
                 </div>
                 {% endif %}
                 
-                <form method="post" action="/queue/register" enctype="multipart/form-data" class="row grid-gap-y" id="queueForm">
+                <form method="post" action="/queue/register" enctype="multipart/form-data" class="row grid-gap-y" id="queueForm" autocomplete="off">
                     <div class="col-md-6">
                         <label class="form-label">City <span class="text-danger fw-bold">*</span></label>
                         <select class="form-select gold-input w-100" name="city" id="citySelect" required>
@@ -355,31 +355,31 @@
                     
                     <div class="col-md-6">
                         <label class="form-label">Visitor Name <span class="text-danger fw-bold">*</span></label>
-                        <input type="text" class="form-control gold-input" name="name" value="{{ form_data.name if form_data else '' }}" placeholder="Enter full name" required>
+                        <input type="text" class="form-control gold-input" name="name" value="{{ form_data.name if form_data else '' }}" placeholder="Enter full name" autocomplete="off" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Mobile Number <span class="text-danger fw-bold">*</span></label>
-                        <input type="tel" class="form-control gold-input" name="mobile_number" value="{{ form_data.mobile_number if form_data else '' }}" placeholder="10 digit mobile number" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Please enter exactly 10 digits" required>
+                        <input type="tel" class="form-control gold-input" name="mobile_number" value="{{ form_data.mobile_number if form_data else '' }}" placeholder="10 digit mobile number" pattern="[0-9]{10}" minlength="10" maxlength="10" title="Please enter exactly 10 digits" autocomplete="off" required>
                     </div>
                     
                     <div class="col-12">
                         <label class="form-label">Address <small class="text-muted fw-normal">(Optional)</small></label>
-                        <textarea class="form-control gold-input" name="address" rows="2" placeholder="Enter street address">{{ form_data.address if form_data else '' }}</textarea>
+                        <textarea class="form-control gold-input" name="address" rows="2" placeholder="Enter street address" autocomplete="off">{{ form_data.address if form_data else '' }}</textarea>
                     </div>
                     
                     <div class="col-12">
                         <label class="form-label">Email Address <small class="text-muted fw-normal">(Optional)</small></label>
-                        <input type="email" class="form-control gold-input" name="email" value="{{ form_data.email if form_data else '' }}" placeholder="name@example.com">
+                        <input type="email" class="form-control gold-input" name="email" value="{{ form_data.email if form_data else '' }}" placeholder="name@example.com" autocomplete="off">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Aadhaar Card <small class="text-muted fw-normal">(Optional)</small></label>
-                        <input type="text" class="form-control gold-input mb-2" name="aadhar_number" value="{{ form_data.aadhar_number if form_data else '' }}" placeholder="12 digit Aadhaar number">
+                        <input type="text" class="form-control gold-input mb-2" name="aadhar_number" value="{{ form_data.aadhar_number if form_data else '' }}" placeholder="12 digit Aadhaar number" autocomplete="off">
                         <label class="form-label small text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Upload Aadhaar Image <small>(Optional)</small></label>
                         <input type="file" class="form-control gold-input form-control-sm" name="aadhar_image" accept="image/*,.pdf">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">PAN Card <small class="text-muted fw-normal">(Optional)</small></label>
-                        <input type="text" class="form-control gold-input mb-2" name="pan_number" value="{{ form_data.pan_number if form_data else '' }}" placeholder="10 digit PAN number">
+                        <input type="text" class="form-control gold-input mb-2" name="pan_number" value="{{ form_data.pan_number if form_data else '' }}" placeholder="10 digit PAN number" autocomplete="off">
                         <label class="form-label small text-muted mb-1"><i class="bi bi-paperclip me-1"></i>Upload PAN Image <small>(Optional)</small></label>
                         <input type="file" class="form-control gold-input form-control-sm" name="pan_image" accept="image/*,.pdf">
                     </div>
@@ -394,9 +394,12 @@
                         <div class="cf-turnstile" data-sitekey="0x4AAAAAAEsa4SHftPaHLjzJ" data-theme="light"></div>
                     </div>
                     
-                    <div class="col-12 text-center pt-3">
+                    <div class="col-12 text-center pt-3 d-flex justify-content-center align-items-center gap-2">
                         <button type="submit" class="cta-button">
                             <i class="bi bi-send-fill me-1"></i> Register Visitor
+                        </button>
+                        <button type="button" onclick="window.location.reload();" class="action-btn shadow-sm" title="Refresh / Clear Form" style="padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.95rem;">
+                            <i class="bi bi-arrow-clockwise"></i>
                         </button>
                     </div>
                 </form>
@@ -417,6 +420,30 @@ function updateDateTime() {
     });
 }
 
+function applyUrlCity() {
+    const search = window.location.search;
+    if (!search) return;
+    const params = new URLSearchParams(search);
+    let target = params.get('city');
+    if (!target) {
+        for (const key of params.keys()) {
+            if (key && key.toLowerCase() !== 'store_id') {
+                target = key;
+                break;
+            }
+        }
+    }
+    if (target) {
+        const targetLower = target.trim().toLowerCase();
+        for (let option of citySelect.options) {
+            if (option.value && option.value.toLowerCase() === targetLower) {
+                citySelect.value = option.value;
+                break;
+            }
+        }
+    }
+}
+
 function filterStores() {
     const city = citySelect.value;
     let first = null;
@@ -431,6 +458,18 @@ function filterStores() {
     }
     if (!storeSelect.value && first) {
         storeSelect.value = first.value;
+    }
+}
+
+function clearFormFieldsOnLoad() {
+    const form = document.getElementById('queueForm');
+    if (!form) return;
+    const hasError = !!document.querySelector('.alert-danger');
+    if (!hasError) {
+        const inputs = form.querySelectorAll('input[type="text"]:not(#liveDateTime), input[type="tel"], input[type="email"], input[type="file"], textarea');
+        inputs.forEach(input => {
+            input.value = '';
+        });
     }
 }
 
@@ -449,7 +488,15 @@ if (queueForm) {
 
 updateDateTime();
 setInterval(updateDateTime, 1000);
+applyUrlCity();
 filterStores();
+clearFormFieldsOnLoad();
+
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        clearFormFieldsOnLoad();
+    }
+});
 </script>
 </body>
 </html>
