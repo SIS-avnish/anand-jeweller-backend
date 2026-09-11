@@ -147,15 +147,15 @@ def _token(db: Session, city: str) -> str:
 
 @router.get('/queue/register', response_class=HTMLResponse)
 async def register_page(request: Request, db: Session = Depends(get_db), city: Optional[str] = None, store_id: Optional[int] = None):
-    stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
+    stores = db.query(Store).filter(Store.city == 'Indore').order_by(Store.store_name.asc()).all()
     grouped = _group(stores)
-    default_city = city or ('Indore' if 'Indore' in grouped else next(iter(grouped.keys()), ''))
+    default_store_id = int(store_id) if store_id else (stores[0].id if stores else '')
     return templates.TemplateResponse('queue_register.html', {
         'request': request,
         'stores_by_city': grouped,
-        'cities': list(grouped.keys()),
-        'selected_city': default_city,
-        'selected_store_id': int(store_id) if store_id else '',
+        'cities': ['Indore'],
+        'selected_city': 'Indore',
+        'selected_store_id': default_store_id,
     })
 
 
@@ -175,7 +175,7 @@ async def register_visitor(
     cf_turnstile_response: Optional[str] = Form(None, alias="cf-turnstile-response"),
     db: Session = Depends(get_db),
 ):
-    stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
+    stores = db.query(Store).filter(Store.city == 'Indore').order_by(Store.store_name.asc()).all()
     grouped = _group(stores)
     store = db.query(Store).filter(Store.id == store_id).first()
 
@@ -183,9 +183,9 @@ async def register_visitor(
         return templates.TemplateResponse('queue_register.html', {
             'request': request,
             'stores_by_city': grouped,
-            'cities': list(grouped.keys()),
-            'selected_city': '',
-            'selected_store_id': '',
+            'cities': ['Indore'],
+            'selected_city': 'Indore',
+            'selected_store_id': stores[0].id if stores else '',
             'error': msg,
             'form_data': None,
         })

@@ -333,17 +333,16 @@
                 
                 <form method="post" action="/queue/register" enctype="multipart/form-data" class="row grid-gap-y" id="queueForm">
                     <div class="col-md-6">
-                        <label class="form-label">City <span class="text-danger fw-bold">*</span></label>
-                        <select class="form-select gold-input w-100" name="city" id="citySelect" required>
-                            <option value="">Select city</option>
-                            {% for city in cities %}
-                            <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>{{ city }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label">City</label>
+                        <div class="gold-input d-flex align-items-center gap-2 bg-light">
+                            <i class="bi bi-geo-alt-fill text-danger"></i>
+                            <span class="fw-semibold">Indore</span>
+                        </div>
+                        <input type="hidden" name="city" id="citySelect" value="Indore">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Store <span class="text-danger fw-bold">*</span></label>
-                        <select class="form-select gold-input w-100" name="store_id" id="storeSelect" required>
+                        <label class="form-label">Store</label>
+                        <select class="form-control gold-input w-100 bg-light" name="store_id" id="storeSelect" required tabindex="-1" aria-disabled="true" style="pointer-events: none; appearance: none; -webkit-appearance: none;">
                             <option value="">Select store</option>
                             {% for city, stores in stores_by_city.items() %}
                                 {% for store in stores %}
