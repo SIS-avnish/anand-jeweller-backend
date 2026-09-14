@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         :root {
             --primary: #cb2121;
@@ -391,7 +390,12 @@
                     
                     <div class="col-md-7">
                         <label class="form-label">Security Check <span class="text-danger fw-bold">*</span></label>
-                        <div class="cf-turnstile" data-sitekey="0x4AAAAAAEsa4SHftPaHLjzJ" data-theme="light"></div>
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span id="mathQuestion" class="fw-bold fs-5 bg-light px-3 py-2 rounded border"></span>
+                            <input type="text" class="form-control gold-input" id="captcha_answer" name="captcha_answer" placeholder="Answer" required autocomplete="off" style="max-width: 100px;">
+                            <input type="hidden" id="captcha_expected" name="captcha_expected">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="generateCaptcha()"><i class="bi bi-arrow-clockwise"></i></button>
+                        </div>
                     </div>
                     
                     <div class="col-12 text-center pt-3 d-flex justify-content-center align-items-center gap-2">
@@ -495,6 +499,25 @@ clearFormFieldsOnLoad();
 window.addEventListener('pageshow', function(event) {
     if (event.persisted) {
         clearFormFieldsOnLoad();
+    }
+});
+
+function generateCaptcha() {
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    document.getElementById('mathQuestion').innerText = `${num1} + ${num2} = ?`;
+    document.getElementById('captcha_expected').value = num1 + num2;
+    document.getElementById('captcha_answer').value = '';
+}
+document.addEventListener('DOMContentLoaded', generateCaptcha);
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    const errorAlert = document.querySelector('.alert-danger');
+    if (errorAlert) {
+        // Show for 3 seconds then hide
+        setTimeout(() => {
+            errorAlert.style.display = 'none';
+        }, 3500);
     }
 });
 </script>

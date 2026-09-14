@@ -192,7 +192,8 @@ async def register_visitor(
     aadhar_image: Optional[UploadFile] = File(None),
     pan_number: str = Form(''),
     pan_image: Optional[UploadFile] = File(None),
-    cf_turnstile_response: Optional[str] = Form(None, alias="cf-turnstile-response"),
+    captcha_answer: str = Form(...),
+    captcha_expected: str = Form(...),
     db: Session = Depends(get_db),
 ):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
@@ -204,34 +205,20 @@ async def register_visitor(
             'request': request,
             'stores_by_city': grouped,
             'cities': list(grouped.keys()),
-            'selected_city': '',
-            'selected_store_id': '',
+            'selected_city': city,
+            'selected_store_id': store_id,
             'error': msg,
-            'form_data': None,
+            'form_data': {
+                'name': name,
+                'mobile_number': mobile_number,
+                'address': address,
+                'email': email,
+                'aadhar_number': aadhar_number,
+                'pan_number': pan_number
+            },
         })
-
-    if not cf_turnstile_response:
-        return error('Please complete the security check (Cloudflare Turnstile).')
-
-    import urllib.request
-    import urllib.parse
-    import json
-    
-    TURNSTILE_SECRET = os.environ.get('TURNSTILE_SECRET_KEY', '0x4AAAAAAEsa4ddgvQzVfXsD6AeyW0P_Q6M')
-    turnstile_data = urllib.parse.urlencode({
-        'secret': TURNSTILE_SECRET,
-        'response': cf_turnstile_response
-    }).encode('utf-8')
-    try:
-        req = urllib.request.Request('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=turnstile_data, method='POST')
-        with urllib.request.urlopen(req) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            if not result.get('success'):
-                error_codes = result.get('error-codes', [])
-                return error(f'Security check failed. Reason: {error_codes}. Please refresh and try again.')
-    except Exception as e:
-        print(f"Turnstile Error: {e}")
-        return error('Could not verify security check. Please try again.')
+    if captcha_answer != captcha_expected:
+        return error('Security check failed. Incorrect math calculation.')
 
     if not store or store.city != city:
         return error('Please choose a valid store for the selected city.')
