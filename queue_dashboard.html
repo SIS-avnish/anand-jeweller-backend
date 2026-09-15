@@ -52,8 +52,8 @@
       </div>
     </div>
     <div class="col-lg-4 text-lg-end">
-      <span class="badge bg-light text-dark me-2">Active Waiting: {{ active_entries|length }}</span>
-      <span class="badge bg-warning text-dark">Archive: {{ closed_entries|length }}</span>
+      <span class="badge bg-light text-dark me-2">Active Waiting: {{ active_pagination.total }}</span>
+      <span class="badge bg-warning text-dark">Archive: {{ closed_pagination.total }}</span>
     </div>
   </div>
 </div>
@@ -187,12 +187,21 @@
     <input type="hidden" name="store_id" value="{{ selected_store_id }}">
     {% endif %}
 
-    <div class="{% if is_super_admin %}col-md-4{% else %}col-md-9{% endif %}">
+    <div class="{% if is_super_admin %}col-md-2{% else %}col-md-7{% endif %}">
       <label class="form-label fw-semibold small text-muted"><i class="bi bi-search me-1"></i>Search Visitor</label>
       <div class="input-group">
         <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
         <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ search_query }}" placeholder="Search by name, mobile, Aadhaar, PAN or token...">
       </div>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label fw-semibold small text-muted">Rows per page</label>
+      <select class="form-select" name="per_page">
+        {% for size in [10, 25, 50, 100] %}
+        <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }} rows</option>
+        {% endfor %}
+      </select>
     </div>
 
     <div class="{% if is_super_admin %}col-md-2{% else %}col-md-3{% endif %} d-flex gap-2">
@@ -205,7 +214,7 @@
 </div>
 {% endif %}
 
-{% if search_query and (active_entries|length == 0) and (closed_entries|length == 0) %}
+{% if search_query and active_pagination.total == 0 and closed_pagination.total == 0 %}
 <!-- Visitor Not Found Toast Notification -->
 <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090;">
   <div id="notFoundToast" class="toast show align-items-center text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" style="background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%); border: 1px solid #f59e0b !important; border-radius: 16px; box-shadow: 0 12px 36px rgba(127, 29, 29, 0.4);">
@@ -232,10 +241,10 @@
 <ul class="nav nav-tabs mb-3">
   {% if is_store_admin or selected_store_id or selected_city or search_query %}
   <li class="nav-item">
-    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#active-pane" type="button">Active Queue</button>
+    <button class="nav-link {% if selected_tab != 'closed' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#active-pane" type="button">Active Queue</button>
   </li>
   <li class="nav-item">
-    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#archive-pane" type="button">Archive (Closed)</button>
+    <button class="nav-link {% if selected_tab == 'closed' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#archive-pane" type="button">Archive (Closed)</button>
   </li>
   {% endif %}
 
@@ -250,10 +259,10 @@
 
 <div class="tab-content">
   {% if is_store_admin or selected_store_id or selected_city or search_query %}
-  <div class="tab-pane fade show active" id="active-pane">
+  <div class="tab-pane fade {% if selected_tab != 'closed' %}show active{% endif %}" id="active-pane">
     <div class="soft">
       <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-        <div class="fw-bold text-dark"><i class="bi bi-hourglass-split me-2 text-warning"></i>Active Waiting Queue ({{ active_entries|length }})</div>
+        <div class="fw-bold text-dark"><i class="bi bi-hourglass-split me-2 text-warning"></i>Active Waiting Queue ({{ active_pagination.total }})</div>
         <a href="/admin/queue/export?status=open{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_store_id %}&store_id={{ selected_store_id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-success btn-sm fw-semibold shadow-sm">
           <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Active Excel
         </a>
@@ -302,13 +311,27 @@
           </tbody>
         </table>
       </div>
+      <div class="d-flex justify-content-between align-items-center p-3 border-top">
+        <small class="text-muted">Page {{ active_pagination.page }} of {{ active_pagination.pages }} · {{ active_pagination.total }} records</small>
+        <div class="btn-group btn-group-sm">
+          <a class="btn btn-outline-secondary {% if not active_pagination.previous_url %}disabled{% endif %}" {% if active_pagination.previous_url %}href="{{ active_pagination.previous_url }}"{% endif %}>Previous</a>
+          {% for item in active_pagination.page_items %}
+            {% if item %}
+            <a class="btn {% if item.current %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ item.url }}">{{ item.page }}</a>
+            {% else %}
+            <span class="btn btn-outline-secondary disabled">…</span>
+            {% endif %}
+          {% endfor %}
+          <a class="btn btn-outline-secondary {% if not active_pagination.next_url %}disabled{% endif %}" {% if active_pagination.next_url %}href="{{ active_pagination.next_url }}"{% endif %}>Next</a>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="tab-pane fade" id="archive-pane">
+  <div class="tab-pane fade {% if selected_tab == 'closed' %}show active{% endif %}" id="archive-pane">
     <div class="soft">
       <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-        <div class="fw-bold text-dark"><i class="bi bi-archive-fill me-2 text-secondary"></i>Archive (Closed Entries) ({{ closed_entries|length }})</div>
+        <div class="fw-bold text-dark"><i class="bi bi-archive-fill me-2 text-secondary"></i>Archive (Closed Entries) ({{ closed_pagination.total }})</div>
         <a href="/admin/queue/export?status=closed{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_store_id %}&store_id={{ selected_store_id }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-success btn-sm fw-semibold shadow-sm">
           <i class="bi bi-file-earmark-excel-fill me-1"></i> Export Archive Excel
         </a>
@@ -356,6 +379,20 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+      <div class="d-flex justify-content-between align-items-center p-3 border-top">
+        <small class="text-muted">Page {{ closed_pagination.page }} of {{ closed_pagination.pages }} · {{ closed_pagination.total }} records</small>
+        <div class="btn-group btn-group-sm">
+          <a class="btn btn-outline-secondary {% if not closed_pagination.previous_url %}disabled{% endif %}" {% if closed_pagination.previous_url %}href="{{ closed_pagination.previous_url }}"{% endif %}>Previous</a>
+          {% for item in closed_pagination.page_items %}
+            {% if item %}
+            <a class="btn {% if item.current %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ item.url }}">{{ item.page }}</a>
+            {% else %}
+            <span class="btn btn-outline-secondary disabled">…</span>
+            {% endif %}
+          {% endfor %}
+          <a class="btn btn-outline-secondary {% if not closed_pagination.next_url %}disabled{% endif %}" {% if closed_pagination.next_url %}href="{{ closed_pagination.next_url }}"{% endif %}>Next</a>
+        </div>
       </div>
     </div>
   </div>

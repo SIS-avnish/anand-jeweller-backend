@@ -416,6 +416,9 @@
 const citySelect = document.getElementById('citySelect');
 const storeSelect = document.getElementById('storeSelect');
 const liveDateTime = document.getElementById('liveDateTime');
+const queueForm = document.getElementById('queueForm');
+const formDraftKey = 'queueRegistrationDraft';
+const registrationCompletedKey = 'queueRegistrationCompleted';
 
 function updateDateTime() {
     liveDateTime.value = new Date().toLocaleString('en-IN', {
@@ -465,27 +468,51 @@ function filterStores() {
     }
 }
 
-function clearFormFieldsOnLoad() {
-    const form = document.getElementById('queueForm');
-    if (!form) return;
-    const hasError = !!document.querySelector('.alert-danger');
-    if (!hasError) {
-        const inputs = form.querySelectorAll('input[type="text"]:not(#liveDateTime), input[type="tel"], input[type="email"], input[type="file"], textarea');
-        inputs.forEach(input => {
-            input.value = '';
+function saveFormDraft() {
+    if (!queueForm) return;
+    const draft = {};
+    queueForm.querySelectorAll('input, select, textarea').forEach(field => {
+        if (!field.name || field.type === 'file' || field.type === 'hidden' || field.id === 'liveDateTime') return;
+        draft[field.name] = field.value;
+    });
+    sessionStorage.setItem(formDraftKey, JSON.stringify(draft));
+}
+
+function restoreFormDraft() {
+    if (!queueForm || document.querySelector('.alert-danger')) return;
+    try {
+        const draft = JSON.parse(sessionStorage.getItem(formDraftKey) || '{}');
+        Object.entries(draft).forEach(([name, value]) => {
+            const field = queueForm.elements.namedItem(name);
+            if (field && field.type !== 'file') field.value = value;
         });
+    } catch (error) {
+        sessionStorage.removeItem(formDraftKey);
     }
 }
 
 citySelect.addEventListener('change', filterStores);
 
-const queueForm = document.getElementById('queueForm');
 if (queueForm) {
+    queueForm.addEventListener('input', saveFormDraft);
+    queueForm.addEventListener('change', saveFormDraft);
     queueForm.addEventListener('submit', function() {
+        saveFormDraft();
         const submitBtn = this.querySelector('button[type="submit"]');
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Registering...';
+            window.setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Retry Registration';
+                if (!document.getElementById('slowSubmitMessage')) {
+                    const message = document.createElement('div');
+                    message.id = 'slowSubmitMessage';
+                    message.className = 'alert alert-warning mt-3 mb-0';
+                    message.textContent = 'The request is taking longer than expected. Your entered details are safe. Please check your connection and retry.';
+                    submitBtn.closest('.col-12').after(message);
+                }
+            }, 10000);
         }
     });
 }
@@ -493,12 +520,16 @@ if (queueForm) {
 updateDateTime();
 setInterval(updateDateTime, 1000);
 applyUrlCity();
+restoreFormDraft();
 filterStores();
-clearFormFieldsOnLoad();
+saveFormDraft();
 
 window.addEventListener('pageshow', function(event) {
+    if (sessionStorage.getItem(registrationCompletedKey) !== '1') return;
+    sessionStorage.removeItem(registrationCompletedKey);
+    sessionStorage.removeItem(formDraftKey);
     if (event.persisted) {
-        clearFormFieldsOnLoad();
+        window.location.reload();
     }
 });
 
