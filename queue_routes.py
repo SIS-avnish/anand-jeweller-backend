@@ -4,6 +4,7 @@ import io
 import os
 import uuid
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import random
 import re
@@ -28,6 +29,7 @@ CITY_PREFIXES = {'Indore': 'IND', 'Bhopal': 'BHP', 'Raipur': 'RAI'}
 # Ensure upload directory for queue documents exists
 UPLOAD_DIR = os.path.join("static", "uploads", "queue")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+MAX_IMAGE_DIMENSION = 2000
 
 
 def _auto_migrate_queue_entry_columns():
@@ -42,34 +44,49 @@ def _auto_migrate_queue_entry_columns():
             if "pan_image" not in columns:
                 conn.execute(text("ALTER TABLE queue_entries ADD COLUMN pan_image VARCHAR"))
                 conn.commit()
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_queue_entries_registration_lookup "
+                "ON queue_entries (mobile_number, store_id, status, created_at)"
+            ))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_queue_entries_city_created_at "
+                "ON queue_entries (city, created_at)"
+            ))
+            conn.commit()
     except Exception as e:
         print(f"Auto-migration check notice: {e}")
 
 _auto_migrate_queue_entry_columns()
 
 
-async def _save_uploaded_file(file: Optional[UploadFile], prefix: str) -> Optional[str]:
+def _save_uploaded_file(file: Optional[UploadFile], prefix: str) -> Optional[str]:
     """Helper to save uploaded document file, automatically converting images to WebP format"""
     if not file or not file.filename:
         return None
-    contents = await file.read()
+    contents = file.file.read()
     if not contents:
         return None
 
     # Automatically convert uploaded images to WEBP format
     try:
         import io
-        from PIL import Image
+        from PIL import Image, ImageOps
         img = Image.open(io.BytesIO(contents))
+        if img.format == "JPEG":
+            img.draft("RGB", (MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION))
+        img = ImageOps.exif_transpose(img)
         filename = f"{prefix}_{uuid.uuid4().hex[:10]}.webp"
         filepath = os.path.join(UPLOAD_DIR, filename)
+
+        if max(img.size) > MAX_IMAGE_DIMENSION:
+            img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.Resampling.LANCZOS)
 
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGBA")
         else:
             img = img.convert("RGB")
 
-        img.save(filepath, "WEBP", quality=82, optimize=True)
+        img.save(filepath, "WEBP", quality=80, method=3)
         return f"/static/uploads/queue/{filename}"
     except Exception as e:
         print(f"[Notice] Image WebP conversion notice: {e}, saving raw file")
@@ -180,7 +197,7 @@ async def register_page(request: Request, db: Session = Depends(get_db), city: O
 
 
 @router.post('/queue/register')
-async def register_visitor(
+def register_visitor(
     request: Request,
     city: str = Form(...),
     store_id: int = Form(...),
@@ -229,10 +246,6 @@ async def register_visitor(
     if len(name.strip()) < 2:
         return error('Please enter the visitor name.')
 
-    # Save optional document uploads
-    aadhar_img_url = await _save_uploaded_file(aadhar_image, "aadhar")
-    pan_img_url = await _save_uploaded_file(pan_image, "pan")
-
     # Check for existing registration within the last 30 minutes for this mobile at this store
     thirty_mins_ago_utc = datetime.utcnow() - timedelta(minutes=30)
     existing_entry = db.query(QueueEntry).filter(
@@ -252,6 +265,13 @@ async def register_visitor(
         request.session['queue_last_entry_id'] = existing_entry.id
         request.session['queue_message'] = msg
         return RedirectResponse(url='/queue/success', status_code=302)
+
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="queue-image") as executor:
+        upload_jobs = [
+            executor.submit(_save_uploaded_file, aadhar_image, "aadhar"),
+            executor.submit(_save_uploaded_file, pan_image, "pan"),
+        ]
+        aadhar_img_url, pan_img_url = [job.result() for job in upload_jobs]
 
     entry = QueueEntry(
         store_id=store.id,
@@ -305,10 +325,18 @@ async def queue_dashboard(
     city: Optional[str] = None,
     store_id: Optional[str] = None,
     search: Optional[str] = None,
+    active_page: int = 1,
+    closed_page: int = 1,
+    per_page: int = 10,
+    tab: str = 'active',
 ):
     stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
     selected_store_id = _optional_int(store_id)
     search_clean = (search or '').strip()
+    per_page = per_page if per_page in (10, 25, 50, 100) else 10
+    active_page = max(active_page, 1)
+    closed_page = max(closed_page, 1)
+    selected_tab = 'closed' if tab == 'closed' else 'active'
 
     if current_user.role == UserRole.STORE_ADMIN.value:
         if not current_user.store_id:
@@ -344,8 +372,79 @@ async def queue_dashboard(
     if current_user.role == UserRole.STORE_ADMIN.value:
         base_query = base_query.filter(QueueEntry.store_id == current_user.store_id)
 
-    active_entries = base_query.filter(QueueEntry.status == 'open').order_by(desc(QueueEntry.created_at)).all()
-    closed_entries = base_query.filter(QueueEntry.status == 'closed').order_by(desc(QueueEntry.created_at)).all()
+    active_query = base_query.filter(QueueEntry.status == 'open')
+    closed_query = base_query.filter(QueueEntry.status == 'closed')
+    active_total = active_query.count()
+    closed_total = closed_query.count()
+    active_pages = max(1, (active_total + per_page - 1) // per_page)
+    closed_pages = max(1, (closed_total + per_page - 1) // per_page)
+    active_page = min(active_page, active_pages)
+    closed_page = min(closed_page, closed_pages)
+    active_entries = (
+        active_query.order_by(desc(QueueEntry.created_at))
+        .offset((active_page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    closed_entries = (
+        closed_query.order_by(desc(QueueEntry.created_at))
+        .offset((closed_page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    def pagination_url(target_tab: str, target_page: int) -> str:
+        params = {
+            'city': city or '',
+            'store_id': selected_store_id or '',
+            'search': search_clean,
+            'active_page': target_page if target_tab == 'active' else active_page,
+            'closed_page': target_page if target_tab == 'closed' else closed_page,
+            'per_page': per_page,
+            'tab': target_tab,
+        }
+        return f"/admin/queue?{urlencode(params)}"
+
+    def pagination_items(target_tab: str, current_page: int, total_pages: int):
+        if total_pages <= 7:
+            page_numbers = list(range(1, total_pages + 1))
+        else:
+            visible_pages = {
+                1, 2, 3,
+                current_page - 1, current_page, current_page + 1,
+                total_pages - 1, total_pages,
+            }
+            page_numbers = sorted(page for page in visible_pages if 1 <= page <= total_pages)
+
+        items = []
+        previous_page = None
+        for page_number in page_numbers:
+            if previous_page is not None and page_number - previous_page > 1:
+                items.append(None)
+            items.append({
+                'page': page_number,
+                'url': pagination_url(target_tab, page_number),
+                'current': page_number == current_page,
+            })
+            previous_page = page_number
+        return items
+
+    active_pagination = {
+        'page': active_page,
+        'pages': active_pages,
+        'total': active_total,
+        'previous_url': pagination_url('active', active_page - 1) if active_page > 1 else None,
+        'next_url': pagination_url('active', active_page + 1) if active_page < active_pages else None,
+        'page_items': pagination_items('active', active_page, active_pages),
+    }
+    closed_pagination = {
+        'page': closed_page,
+        'pages': closed_pages,
+        'total': closed_total,
+        'previous_url': pagination_url('closed', closed_page - 1) if closed_page > 1 else None,
+        'next_url': pagination_url('closed', closed_page + 1) if closed_page < closed_pages else None,
+        'page_items': pagination_items('closed', closed_page, closed_pages),
+    }
 
     # Calculate Today's Visitor Statistics (12 AM IST Reset)
     now_utc = datetime.utcnow()
@@ -390,6 +489,10 @@ async def queue_dashboard(
         'search_query': search_clean,
         'active_entries': active_entries,
         'closed_entries': closed_entries,
+        'active_pagination': active_pagination,
+        'closed_pagination': closed_pagination,
+        'per_page': per_page,
+        'selected_tab': selected_tab,
         'today_total_visitors': today_total_visitors,
         'today_active_count': today_active_count,
         'today_completed_count': today_completed_count,

@@ -303,3 +303,4 @@ pids
 *.history
 gold_rates.db
 temp_interactive_push.bat
+branch_structure.json
