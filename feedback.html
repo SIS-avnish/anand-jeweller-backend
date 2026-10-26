@@ -1,0 +1,281 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Share Your Feedback - Anand Jewels</title>
+  <style>
+    :root {
+      --brand: #c91f26;
+      --brand-dark: #94151a;
+      --gold: #d5a62e;
+      --ink: #2b2020;
+      --muted: #746868;
+      --line: #ead9ae;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(213, 166, 46, .18), transparent 34%),
+        linear-gradient(145deg, #fff8e8, #fff 52%, #fdeaea);
+    }
+    .card {
+      width: min(100%, 620px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: #fff;
+      box-shadow: 0 26px 80px rgba(103, 20, 20, .16);
+    }
+    .hero {
+      padding: 34px 24px 30px;
+      text-align: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+    }
+    .logo {
+      max-width: 190px;
+      height: 68px;
+      margin-bottom: 12px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .12));
+    }
+    h1 { margin: 0 0 8px; font-size: clamp(1.65rem, 5vw, 2.2rem); }
+    .hero p { margin: 0; color: #ffe9b0; }
+    .content { padding: 30px clamp(20px, 6vw, 44px) 38px; }
+    .intro { margin: 0 0 20px; text-align: center; color: var(--muted); }
+    .rating {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: center;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .rating input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .rating label {
+      cursor: pointer;
+      color: #d7d2cb;
+      font-size: clamp(2.5rem, 10vw, 3.4rem);
+      line-height: 1;
+      transition: color .15s ease, transform .15s ease;
+    }
+    .rating label:hover,
+    .rating label:hover ~ label,
+    .rating input:checked ~ label {
+      color: #f4b400;
+      transform: translateY(-2px) scale(1.04);
+    }
+    .rating input:focus-visible + label {
+      outline: 3px solid rgba(201, 31, 38, .22);
+      outline-offset: 4px;
+      border-radius: 8px;
+    }
+    .rating-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+    label.field-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      padding: 13px 14px;
+      border: 1px solid #d9d1ca;
+      border-radius: 13px;
+      font: inherit;
+    }
+    textarea:focus {
+      border-color: var(--brand);
+      outline: 3px solid rgba(201, 31, 38, .12);
+    }
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px 18px;
+      border: 0;
+      border-radius: 13px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 9px 24px rgba(201, 31, 38, .22);
+    }
+    button:hover { filter: brightness(.96); }
+    button:disabled { cursor: not-allowed; opacity: .65; }
+    .message {
+      display: none;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: .92rem;
+    }
+    .message.error {
+      display: block;
+      color: #8f151b;
+      border: 1px solid #f1b6ba;
+      background: #fff0f1;
+    }
+    .success {
+      display: none;
+      padding: 20px 0 10px;
+      text-align: center;
+    }
+    .success-icon {
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: #16834b;
+      font-size: 2.6rem;
+      font-weight: 900;
+    }
+    .success h2 { margin: 0 0 8px; }
+    .success p { margin: 0; color: var(--muted); }
+    .meta {
+      margin-top: 18px;
+      text-align: center;
+      color: #998b82;
+      font-size: .75rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header class="hero">
+      <img class="logo" src="/static/images/logo.png" alt="Anand Jewels">
+      <h1>We Value Your Feedback</h1>
+      <p>Your experience helps us serve you better.</p>
+    </header>
+
+    <section class="content">
+      <div id="message" class="message" role="alert"></div>
+
+      <form id="feedbackForm">
+        <p class="intro">Please rate your recent visit to Anand Jewels.</p>
+
+        <div class="rating" aria-label="Rating from 1 to 5 stars">
+          <input id="star5" type="radio" name="rating" value="5" required>
+          <label for="star5" title="5 stars">★</label>
+          <input id="star4" type="radio" name="rating" value="4">
+          <label for="star4" title="4 stars">★</label>
+          <input id="star3" type="radio" name="rating" value="3">
+          <label for="star3" title="3 stars">★</label>
+          <input id="star2" type="radio" name="rating" value="2">
+          <label for="star2" title="2 stars">★</label>
+          <input id="star1" type="radio" name="rating" value="1">
+          <label for="star1" title="1 star">★</label>
+        </div>
+
+        <div class="rating-scale">
+          <span>Needs improvement</span>
+          <span>Excellent</span>
+        </div>
+
+        <label class="field-label" for="comments">
+          Tell us more <span style="font-weight:400;color:var(--muted)">(optional)</span>
+        </label>
+        <textarea id="comments" maxlength="2000" placeholder="Share your experience with us..."></textarea>
+
+        <button id="submitButton" type="submit">Submit Feedback</button>
+        <div class="meta">Your feedback is securely linked to your visit.</div>
+      </form>
+
+      <div id="success" class="success">
+        <div class="success-icon">✓</div>
+        <h2>Thank You!</h2>
+        <p>Your feedback has been submitted successfully.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const form = document.getElementById("feedbackForm");
+    const message = document.getElementById("message");
+    const submitButton = document.getElementById("submitButton");
+    const success = document.getElementById("success");
+
+    function showError(text) {
+      message.textContent = text;
+      message.className = "message error";
+    }
+
+    if (!token) {
+      showError("This feedback link is invalid because its token is missing.");
+      submitButton.disabled = true;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      message.className = "message";
+      message.textContent = "";
+
+      const ratingInput = form.querySelector('input[name="rating"]:checked');
+      if (!ratingInput) {
+        showError("Please select a rating from 1 to 5.");
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting...";
+
+      try {
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            token,
+            rating: Number(ratingInput.value),
+            comments: document.getElementById("comments").value.trim()
+          })
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          if (response.status === 409) {
+            form.style.display = "none";
+            success.style.display = "block";
+            success.querySelector("p").textContent = "This feedback was already submitted. Thank you!";
+            return;
+          }
+          throw new Error(result.detail || "Unable to submit feedback. Please try again.");
+        }
+
+        form.style.display = "none";
+        success.style.display = "block";
+      } catch (error) {
+        showError(error.message || "Unable to submit feedback. Please try again.");
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit Feedback";
+      }
+    });
+  </script>
+</body>
+</html>
+

@@ -183,6 +183,13 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if user_role in ['super_admin', 'store_admin'] %}
+                <li class="nav-item">
+                    <a class="nav-link {% if '/admin/feedback' in request.url.path %}active{% endif %}" href="/admin/feedback">
+                        <i class="bi bi-star-fill me-2"></i> Feedback
+                    </a>
+                </li>
+                {% endif %}
                 {% if user_role == 'super_admin' %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'gold-rates' in request.url.path %}active{% endif %}" href="/admin/gold-rates">
@@ -249,6 +256,13 @@
                     <li class="nav-item">
                         <a class="nav-link {% if '/queue' in request.url.path %}active{% endif %}" href="/admin/queue">
                             <i class="bi bi-people-fill me-2"></i> Queue Management
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_role in ['super_admin', 'store_admin'] %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/admin/feedback' in request.url.path %}active{% endif %}" href="/admin/feedback">
+                            <i class="bi bi-star-fill me-2"></i> Feedback
                         </a>
                     </li>
                     {% endif %}

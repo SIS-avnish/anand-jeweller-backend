@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +38,9 @@ app.add_middleware(
         "https://stellular-dango-c81d79.netlify.app",
         "https://frolicking-sawine-ea298b.netlify.app",
         "http://127.0.0.1:5500",
-        "http://localhost:5500"
+        "http://localhost:5500",
+        "https://anandjewels.com",
+        "https://www.anandjewels.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -45,7 +48,7 @@ app.add_middleware(
 )
 # Add session middleware for authentication
 # In production, use a secure secret key
-SECRET_KEY = "your-secret-key-change-this-in-production"
+SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "change-this-session-secret")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, max_age=86400)  # 24 hours
 
 # Mount static files for custom CSS/JS
@@ -62,6 +65,11 @@ async def root():
     """Redirect root to admin login"""
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/admin")
+
+@app.get("/feedback.html", include_in_schema=False)
+async def static_feedback_page():
+    return FileResponse("feedback.html")
+
 
 # Health check
 @app.get("/health")

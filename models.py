@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, UniqueConstraint, Text, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Float, Date, DateTime, UniqueConstraint, Text, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
@@ -277,6 +277,7 @@ class QueueEntry(Base):
     token = Column(String, nullable=False, index=True)
     
     store = relationship("Store", backref="queue_entries")
+    feedback = relationship("QueueFeedback", back_populates="queue_entry", uselist=False)
     
     @property
     def created_at_ist(self):
@@ -287,3 +288,93 @@ class QueueEntry(Base):
 
     def __repr__(self):
         return f"<QueueEntry(token='{self.token}', name='{self.name}', status='{self.status}')>"
+
+
+class QueueFeedback(Base):
+    __tablename__ = "queue_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    queue_entry_id = Column(Integer, ForeignKey("queue_entries.id"), unique=True, nullable=False, index=True)
+    token = Column(String(100), unique=True, nullable=False, index=True)
+    rating = Column(Integer, nullable=True)
+    comments = Column(Text, nullable=True)
+    sent_to = Column(String(20), nullable=True)
+    send_status = Column(String(20), nullable=False, default="pending")
+    provider_response = Column(Text, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    submitted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    queue_entry = relationship("QueueEntry", back_populates="feedback")
+
+    @property
+    def submitted_at_ist(self):
+        if self.submitted_at:
+            from datetime import timedelta
+            return self.submitted_at + timedelta(hours=5, minutes=30)
+        return None
+
+
+class FeedbackBatchRun(Base):
+    __tablename__ = "feedback_batch_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_date = Column(Date, unique=True, nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="running")
+    total_entries = Column(Integer, nullable=False, default=0)
+    queued_count = Column(Integer, nullable=False, default=0)
+    failed_count = Column(Integer, nullable=False, default=0)
+    skipped_count = Column(Integer, nullable=False, default=0)
+    run_count = Column(Integer, nullable=False, default=1)
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, default=func.now(), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class ExternalFeedback(Base):
+    __tablename__ = "external_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_system = Column(String(30), nullable=False, default="cre", index=True)
+    external_feedback_id = Column(Integer, nullable=False)
+    external_customer_id = Column(Integer, nullable=True)
+    visit_number = Column(String(100), nullable=True)
+    customer_name = Column(String(200), nullable=False)
+    mobile_number = Column(String(20), nullable=False)
+    external_store_id = Column(Integer, nullable=True, index=True)
+    store_name = Column(String(200), nullable=True, index=True)
+    rating = Column(Integer, nullable=True)
+    comments = Column(Text, nullable=True)
+    send_status = Column(String(20), nullable=False, default="pending", index=True)
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    submitted_at = Column(DateTime, nullable=True)
+    source_updated_at = Column(DateTime, nullable=False, index=True)
+    synced_at = Column(DateTime, default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_system",
+            "external_feedback_id",
+            name="uq_external_feedback_source_id",
+        ),
+    )
+
+    @property
+    def submitted_at_ist(self):
+        if self.submitted_at:
+            from datetime import timedelta
+            return self.submitted_at + timedelta(hours=5, minutes=30)
+        return None
+
+
+class FeedbackSyncState(Base):
+    __tablename__ = "feedback_sync_states"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_system = Column(String(30), unique=True, nullable=False, index=True)
+    cursor_time = Column(DateTime, nullable=True)
+    cursor_id = Column(Integer, nullable=False, default=0)
+    last_status = Column(String(20), nullable=False, default="pending")
+    last_error = Column(Text, nullable=True)
+    last_synced_at = Column(DateTime, nullable=True)
+

@@ -1,7 +1,9 @@
 import csv
 import html
 import io
+import json
 import os
+import secrets
 import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -9,10 +11,14 @@ from datetime import datetime, timedelta
 import random
 import re
 from urllib.parse import urlencode
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest, urlopen
 import bcrypt
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, status, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from dotenv import load_dotenv
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 from sqlalchemy import desc, text
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -20,7 +26,10 @@ from typing import Optional
 from database import get_db, engine
 from jwt_auth import require_admin_auth
 from auth import authenticate_user, login_user, is_authenticated
-from models import AdminUser, QueueEntry, Store, UserRole
+from cre_feedback_sync import resend_cre_feedback, sync_cre_feedback
+from models import AdminUser, ExternalFeedback, QueueEntry, QueueFeedback, Store, UserRole
+
+load_dotenv()
 
 router = APIRouter()
 templates = Jinja2Templates(directory=['templates', '.'])
@@ -31,6 +40,19 @@ UPLOAD_DIR = os.path.join("static", "uploads", "queue")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 MAX_IMAGE_DIMENSION = 2000
 
+
+KIT19_WHATSAPP_URL = os.getenv("KIT19_WHATSAPP_URL", "https://services.kit19.com/IMS/Whatsapp/Template")
+KIT19_WHATSAPP_KEY = os.getenv("KIT19_WHATSAPP_KEY", "")
+KIT19_WHATSAPP_USERNAME = os.getenv("KIT19_WHATSAPP_USERNAME", "")
+FEEDBACK_BASE_URL = os.getenv("FEEDBACK_BASE_URL", "").rstrip("/")
+FEEDBACK_STATIC_URL = os.getenv("FEEDBACK_STATIC_URL", "").strip()
+FEEDBACK_IMMEDIATE_SEND = os.getenv("FEEDBACK_IMMEDIATE_SEND", "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+class FeedbackSubmission(BaseModel):
+    token: str = Field(min_length=10, max_length=100)
+    rating: int = Field(ge=1, le=5)
+    comments: Optional[str] = Field(default=None, max_length=2000)
 
 def _auto_migrate_queue_entry_columns():
     """Ensure aadhar_image and pan_image columns exist in SQLite queue_entries table"""
@@ -139,6 +161,140 @@ def _mobile(value):
     return re.sub(r'\D', '', value or '')
 
 
+def _whatsapp_mobile(value: str) -> str:
+    mobile = _mobile(value)
+    if len(mobile) == 10:
+        return f"91{mobile}"
+    if len(mobile) == 12 and mobile.startswith("91"):
+        return mobile
+    raise ValueError("Visitor mobile number must be a valid Indian WhatsApp number")
+
+
+def _configured_feedback_url(token: str) -> Optional[str]:
+    if FEEDBACK_STATIC_URL:
+        if "{token}" in FEEDBACK_STATIC_URL:
+            return FEEDBACK_STATIC_URL.replace("{token}", token)
+        separator = "&" if "?" in FEEDBACK_STATIC_URL else "?"
+        return f"{FEEDBACK_STATIC_URL}{separator}token={token}"
+    if FEEDBACK_BASE_URL:
+        return f"{FEEDBACK_BASE_URL}/feedback/{token}"
+    return None
+
+
+def _feedback_url(request: Request, token: str) -> str:
+    return _configured_feedback_url(token) or str(
+        request.url_for("feedback_form", token=token)
+    )
+
+
+def _send_feedback_whatsapp(entry: QueueEntry, feedback_url: str) -> tuple[str, str]:
+    if not KIT19_WHATSAPP_KEY or not KIT19_WHATSAPP_USERNAME:
+        raise RuntimeError("Kit19 WhatsApp credentials are not configured")
+
+    recipient = _whatsapp_mobile(entry.mobile_number)
+    payload = {
+        "key": KIT19_WHATSAPP_KEY,
+        "username": KIT19_WHATSAPP_USERNAME,
+        "name": "whatsapp",
+        "remarks": (
+            "Dear Customer,\n\nYour feedback ensures we continually improve. \n\n"
+            "Please click below to share your thoughts on your recent visit at our store.\n"
+            "*[@CustomField1@]*\n\nThank you in advance!\n\nRegards,\n*Anand Jewels*"
+        ),
+        "whatsapp": {
+            "to": recipient,
+            "type": "template",
+            "category": "UTILITY",
+            "recipient_type": "individual",
+            "template": {
+                "namespace": "",
+                "language": {"policy": "deterministic", "code": "en"},
+                "name": "feedback_template",
+                "components": [{
+                    "type": "body",
+                    "parameters": [{"type": "text", "text": feedback_url}],
+                }],
+            },
+        },
+    }
+    provider_request = UrlRequest(
+        KIT19_WHATSAPP_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "curl/8.10.1",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(provider_request, timeout=15) as response:
+            response_text = response.read().decode("utf-8", errors="replace")
+            if response.status < 200 or response.status >= 300:
+                raise RuntimeError(f"WhatsApp API returned HTTP {response.status}")
+            return recipient, response_text[:4000]
+    except HTTPError as exc:
+        response_text = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"WhatsApp API returned HTTP {exc.code}: {response_text[:500]}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"Unable to connect to WhatsApp API: {exc.reason}") from exc
+
+
+
+
+def _ensure_feedback(db: Session, entry: QueueEntry) -> QueueFeedback:
+    feedback = db.query(QueueFeedback).filter(
+        QueueFeedback.queue_entry_id == entry.id
+    ).first()
+    if not feedback:
+        feedback = QueueFeedback(
+            queue_entry_id=entry.id,
+            token=secrets.token_urlsafe(32),
+            send_status="pending",
+        )
+        db.add(feedback)
+        db.flush()
+    return feedback
+
+
+def _deliver_feedback_to_url(
+    db: Session,
+    entry: QueueEntry,
+    feedback_url: str,
+) -> tuple[QueueFeedback, Optional[str]]:
+    feedback = _ensure_feedback(db, entry)
+
+    try:
+        recipient, provider_response = _send_feedback_whatsapp(entry, feedback_url)
+        provider_data = json.loads(provider_response)
+        if provider_data.get("success") is not True:
+            raise RuntimeError("Kit19 did not accept the WhatsApp message")
+        feedback.sent_to = recipient
+        feedback.send_status = "queued"
+        feedback.provider_response = provider_response
+        feedback.sent_at = datetime.utcnow()
+        error = None
+    except Exception as exc:
+        feedback.send_status = "failed"
+        feedback.provider_response = str(exc)[:4000]
+        error = str(exc)
+
+    db.commit()
+    db.refresh(feedback)
+    return feedback, error
+
+
+def _deliver_feedback(
+    db: Session,
+    request: Request,
+    entry: QueueEntry,
+) -> tuple[QueueFeedback, Optional[str]]:
+    feedback = _ensure_feedback(db, entry)
+    return _deliver_feedback_to_url(
+        db,
+        entry,
+        _feedback_url(request, feedback.token),
+    )
 def _token(db: Session, city: str) -> str:
     # Calculate current IST time (UTC + 5:30)
     now_utc = datetime.utcnow()
@@ -288,8 +444,25 @@ def register_visitor(
         token=_token(db, city),
     )
     db.add(entry)
+    db.flush()
+    feedback = _ensure_feedback(db, entry)
     db.commit()
     db.refresh(entry)
+
+    if FEEDBACK_IMMEDIATE_SEND:
+        feedback, feedback_error = _deliver_feedback(db, request, entry)
+        if feedback_error:
+            request.session['queue_feedback_error'] = (
+                f'Queue registered, but WhatsApp message failed: {feedback_error}'
+            )
+        else:
+            request.session['queue_feedback_message'] = (
+                'Feedback link queued for WhatsApp delivery.'
+            )
+    else:
+        request.session['queue_feedback_message'] = (
+            'Feedback link scheduled for the daily midnight batch.'
+        )
     request.session['queue_last_entry_id'] = entry.id
     return RedirectResponse(url='/queue/success', status_code=302)
 
@@ -298,6 +471,8 @@ def register_visitor(
 async def success_page(request: Request, db: Session = Depends(get_db)):
     entry_id = request.session.get('queue_last_entry_id')
     queue_message = request.session.pop('queue_message', None)
+    queue_feedback_message = request.session.pop('queue_feedback_message', None)
+    queue_feedback_error = request.session.pop('queue_feedback_error', None)
 
     if not entry_id:
         return RedirectResponse(url='/queue/register', status_code=302)
@@ -312,6 +487,8 @@ async def success_page(request: Request, db: Session = Depends(get_db)):
         'store': store,
         'ist_created_at': ist_created_at,
         'queue_message': queue_message,
+        'queue_feedback_message': queue_feedback_message,
+        'queue_feedback_error': queue_feedback_error,
     })
 
 
@@ -476,6 +653,9 @@ async def queue_dashboard(
     assigned_store = None
     if current_user.role == UserRole.STORE_ADMIN.value and current_user.store_id:
         assigned_store = db.query(Store).filter(Store.id == current_user.store_id).first()
+    feedback_message = request.session.pop("feedback_message", None)
+    feedback_error = request.session.pop("feedback_error", None)
+
 
     return templates.TemplateResponse('queue_dashboard.html', {
         'request': request,
@@ -500,7 +680,326 @@ async def queue_dashboard(
         'admins': admins,
         'is_super_admin': current_user.role == UserRole.SUPER_ADMIN.value,
         'is_store_admin': current_user.role == UserRole.STORE_ADMIN.value,
+        'feedback_message': feedback_message,
+        'feedback_error': feedback_error,
     })
+
+
+@router.get('/feedback/{token}', response_class=HTMLResponse, name='feedback_form')
+async def feedback_form(request: Request, token: str, db: Session = Depends(get_db)):
+    feedback = db.query(QueueFeedback).filter(QueueFeedback.token == token).first()
+    if not feedback:
+        raise HTTPException(status_code=404, detail='Feedback link is invalid')
+    return templates.TemplateResponse('feedback_form.html', {
+        'request': request,
+        'feedback': feedback,
+        'entry': feedback.queue_entry,
+        'submitted': feedback.submitted_at is not None,
+    })
+
+
+@router.post('/api/feedback', response_class=JSONResponse)
+async def submit_feedback_api(payload: FeedbackSubmission, db: Session = Depends(get_db)):
+    feedback = db.query(QueueFeedback).filter(QueueFeedback.token == payload.token).first()
+    if not feedback:
+        raise HTTPException(status_code=404, detail='Feedback link is invalid')
+    if feedback.submitted_at is not None:
+        raise HTTPException(status_code=409, detail='Feedback has already been submitted')
+
+    feedback.rating = payload.rating
+    feedback.comments = (payload.comments or '').strip()[:2000] or None
+    feedback.submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(feedback)
+
+    return {
+        'success': True,
+        'message': 'Thank you. Your feedback has been submitted successfully.',
+        'feedback_id': feedback.id,
+        'queue_entry_id': feedback.queue_entry_id,
+        'submitted_at': feedback.submitted_at.isoformat(),
+    }
+
+
+@router.get('/admin/feedback', response_class=HTMLResponse)
+async def feedback_dashboard(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+    city: Optional[str] = None,
+    store_id: Optional[str] = None,
+    search: Optional[str] = None,
+    feedback_status: str = 'all',
+    page: int = 1,
+    per_page: int = 25,
+):
+    selected_store_id = _optional_int(store_id)
+    search_clean = (search or '').strip()
+    feedback_status = feedback_status if feedback_status in ('all', 'submitted', 'pending') else 'all'
+    per_page = per_page if per_page in (10, 25, 50, 100) else 25
+    page = max(page, 1)
+    stores = db.query(Store).order_by(Store.city.asc(), Store.store_name.asc()).all()
+
+    if current_user.role == UserRole.STORE_ADMIN.value:
+        if not current_user.store_id:
+            raise HTTPException(status_code=403, detail='Store admin is not linked to a store')
+        selected_store_id = current_user.store_id
+        assigned_store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        city = assigned_store.city if assigned_store else ''
+        stores = [assigned_store] if assigned_store else []
+    else:
+        assigned_store = None
+
+    sync_result = sync_cre_feedback(db)
+    sync_message = request.session.pop("cre_sync_message", None)
+    sync_error = request.session.pop("cre_sync_error", None)
+    if not sync_result.get("success") and not sync_error:
+        sync_error = (
+            "CRE sync failed; showing cached feedback. "
+            + sync_result.get("error", "Unknown error")
+        )
+
+    external_query = db.query(ExternalFeedback).filter(
+        ExternalFeedback.source_system == "cre",
+        ExternalFeedback.submitted_at.isnot(None),
+    )
+    if search_clean:
+        external_term = f"%{search_clean}%"
+        external_query = external_query.filter(or_(
+            ExternalFeedback.customer_name.ilike(external_term),
+            ExternalFeedback.mobile_number.ilike(external_term),
+            ExternalFeedback.visit_number.ilike(external_term),
+        ))
+    if current_user.role == UserRole.STORE_ADMIN.value and assigned_store:
+        external_query = external_query.filter(or_(
+            ExternalFeedback.external_store_id == current_user.store_id,
+            ExternalFeedback.store_name == assigned_store.store_name,
+        ))
+    elif selected_store_id is not None:
+        selected_store = db.query(Store).filter(
+            Store.id == selected_store_id
+        ).first()
+        store_filters = [
+            ExternalFeedback.external_store_id == selected_store_id
+        ]
+        if selected_store:
+            store_filters.append(
+                ExternalFeedback.store_name == selected_store.store_name
+            )
+        external_query = external_query.filter(or_(*store_filters))
+
+    cre_feedback_entries = external_query.order_by(
+        desc(ExternalFeedback.submitted_at),
+        desc(ExternalFeedback.source_updated_at),
+    ).limit(250).all()
+
+    query = db.query(QueueEntry).outerjoin(QueueFeedback)
+    if city:
+        query = query.filter(QueueEntry.city == city)
+    if selected_store_id is not None:
+        query = query.filter(QueueEntry.store_id == selected_store_id)
+    if search_clean:
+        term = f"%{search_clean}%"
+        query = query.filter(or_(
+            QueueEntry.name.ilike(term),
+            QueueEntry.mobile_number.ilike(term),
+            QueueEntry.token.ilike(term),
+        ))
+    if feedback_status == 'submitted':
+        query = query.filter(QueueFeedback.submitted_at.isnot(None))
+    elif feedback_status == 'pending':
+        query = query.filter(or_(QueueFeedback.id.is_(None), QueueFeedback.submitted_at.is_(None)))
+
+    total = query.count()
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, pages)
+    entries = (
+        query.order_by(desc(QueueFeedback.submitted_at), desc(QueueEntry.created_at))
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    submitted_count_query = db.query(QueueFeedback).join(QueueEntry).filter(QueueFeedback.submitted_at.isnot(None))
+    pending_count_query = db.query(QueueEntry).outerjoin(QueueFeedback).filter(
+        or_(QueueFeedback.id.is_(None), QueueFeedback.submitted_at.is_(None))
+    )
+    if city:
+        submitted_count_query = submitted_count_query.filter(QueueEntry.city == city)
+        pending_count_query = pending_count_query.filter(QueueEntry.city == city)
+    if selected_store_id is not None:
+        submitted_count_query = submitted_count_query.filter(QueueEntry.store_id == selected_store_id)
+        pending_count_query = pending_count_query.filter(QueueEntry.store_id == selected_store_id)
+
+    grouped = _group([store for store in stores if store])
+    query_params = {
+        'city': city or '',
+        'store_id': selected_store_id or '',
+        'search': search_clean,
+        'feedback_status': feedback_status,
+        'per_page': per_page,
+    }
+
+    def page_url(page_number: int) -> str:
+        return f"/admin/feedback?{urlencode({**query_params, 'page': page_number})}"
+
+    return templates.TemplateResponse('feedback_dashboard.html', {
+        'request': request,
+        'user': current_user,
+        'user_role': current_user.role,
+        'assigned_store': assigned_store,
+        'entries': entries,
+        'cre_feedback_entries': cre_feedback_entries,
+        'cre_feedback_count': len(cre_feedback_entries),
+        'cre_sync_result': sync_result,
+        'cre_sync_message': sync_message,
+        'cre_sync_error': sync_error,
+        'stores_by_city': grouped,
+        'cities': list(grouped.keys()),
+        'selected_city': city or '',
+        'selected_store_id': selected_store_id or '',
+        'search_query': search_clean,
+        'feedback_status': feedback_status,
+        'submitted_count': submitted_count_query.count(),
+        'pending_count': pending_count_query.count(),
+        'page': page,
+        'pages': pages,
+        'total': total,
+        'per_page': per_page,
+        'previous_url': page_url(page - 1) if page > 1 else None,
+        'next_url': page_url(page + 1) if page < pages else None,
+        'is_super_admin': current_user.role == UserRole.SUPER_ADMIN.value,
+        'is_store_admin': current_user.role == UserRole.STORE_ADMIN.value,
+        'now_utc': datetime.utcnow(),
+    })
+
+
+@router.post('/admin/feedback/sync')
+async def sync_feedback_from_cre(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+):
+    result = sync_cre_feedback(db)
+    if result.get("success"):
+        request.session["cre_sync_message"] = (
+            f"CRE sync completed. {result.get('imported', 0)} record(s) processed."
+        )
+    else:
+        request.session["cre_sync_error"] = (
+            "CRE sync failed: " + result.get("error", "Unknown error")
+        )
+    return RedirectResponse(url="/admin/feedback", status_code=302)
+
+
+@router.post('/admin/feedback/cre/{feedback_id}/resend')
+async def resend_external_feedback(
+    request: Request,
+    feedback_id: int,
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+):
+    feedback = db.query(ExternalFeedback).filter(
+        ExternalFeedback.id == feedback_id,
+        ExternalFeedback.source_system == "cre",
+    ).first()
+    if not feedback:
+        raise HTTPException(status_code=404, detail="CRE feedback not found")
+
+    if current_user.role == UserRole.STORE_ADMIN.value:
+        assigned_store = db.query(Store).filter(
+            Store.id == current_user.store_id
+        ).first()
+        store_matches = (
+            feedback.external_store_id == current_user.store_id
+            or (
+                assigned_store
+                and feedback.store_name == assigned_store.store_name
+            )
+        )
+        if not store_matches:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only manage your own store feedback",
+            )
+
+    if feedback.submitted_at is not None:
+        request.session["cre_sync_error"] = (
+            "Feedback is already submitted and cannot be resent."
+        )
+        return RedirectResponse(url="/admin/feedback", status_code=302)
+
+    try:
+        result = resend_cre_feedback(feedback.external_feedback_id)
+        feedback.send_status = result.get("status") or "queued"
+        feedback.synced_at = datetime.utcnow()
+        db.commit()
+        request.session["cre_sync_message"] = (
+            f"CRE feedback link queued for {feedback.customer_name}."
+        )
+    except Exception as exc:
+        request.session["cre_sync_error"] = f"CRE resend failed: {exc}"
+
+    return RedirectResponse(url="/admin/feedback", status_code=302)
+
+
+@router.post('/feedback/{token}', response_class=HTMLResponse)
+async def submit_feedback(
+    request: Request,
+    token: str,
+    rating: int = Form(...),
+    comments: str = Form(''),
+    db: Session = Depends(get_db),
+):
+    feedback = db.query(QueueFeedback).filter(QueueFeedback.token == token).first()
+    if not feedback:
+        raise HTTPException(status_code=404, detail='Feedback link is invalid')
+    if feedback.submitted_at is None:
+        if rating < 1 or rating > 5:
+            return templates.TemplateResponse('feedback_form.html', {
+                'request': request,
+                'feedback': feedback,
+                'entry': feedback.queue_entry,
+                'submitted': False,
+                'error': 'Please select a rating from 1 to 5.',
+            }, status_code=400)
+        feedback.rating = rating
+        feedback.comments = comments.strip()[:2000] or None
+        feedback.submitted_at = datetime.utcnow()
+        db.commit()
+        db.refresh(feedback)
+    return templates.TemplateResponse('feedback_form.html', {
+        'request': request,
+        'feedback': feedback,
+        'entry': feedback.queue_entry,
+        'submitted': True,
+    })
+
+
+@router.post('/admin/queue/send-feedback/{entry_id}')
+async def send_feedback_link(
+    request: Request,
+    entry_id: int,
+    city: str = Form(''),
+    store_id: str = Form(''),
+    tab: str = Form('active'),
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+):
+    entry = db.query(QueueEntry).filter(QueueEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail='Queue entry not found')
+    if current_user.role == UserRole.STORE_ADMIN.value and entry.store_id != current_user.store_id:
+        raise HTTPException(status_code=403, detail='You can only manage your own store queue')
+
+    feedback, feedback_error = _deliver_feedback(db, request, entry)
+    if feedback_error:
+        request.session['feedback_error'] = f'Feedback link could not be sent: {feedback_error}'
+    else:
+        request.session['feedback_message'] = f'Feedback link queued for {entry.name} on WhatsApp.'
+
+    params = {'city': city, 'store_id': store_id, 'tab': 'closed' if tab == 'closed' else 'active'}
+    return RedirectResponse(url=f"/admin/queue?{urlencode(params)}", status_code=302)
+
 
 
 @router.get('/admin/queue/export')

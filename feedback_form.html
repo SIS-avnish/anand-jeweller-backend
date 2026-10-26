@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Share Your Feedback - Anand Jewels</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { min-height: 100vh; background: linear-gradient(145deg, #fff8e8, #fff, #fce7e7); }
+    .feedback-card { max-width: 620px; border: 1px solid #efd9a4; border-radius: 24px; box-shadow: 0 24px 70px rgba(120, 24, 24, .14); }
+    .brand-head { background: linear-gradient(135deg, #cb2121, #9f1515); border-radius: 24px 24px 0 0; color: white; }
+    .rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: .35rem; }
+    .rating input { display: none; }
+    .rating label { cursor: pointer; font-size: 2.6rem; color: #d7d7d7; transition: transform .15s, color .15s; }
+    .rating label:hover, .rating label:hover ~ label, .rating input:checked ~ label { color: #f5b301; transform: scale(1.06); }
+  </style>
+</head>
+<body class="d-flex align-items-center justify-content-center p-3 py-5">
+  <main class="card feedback-card w-100 border-0">
+    <header class="brand-head text-center p-4">
+      <img src="/static/images/logo.png" alt="Anand Jewels" style="height:70px" class="mb-2">
+      <h1 class="h3 mb-1">We Value Your Feedback</h1>
+      <p class="mb-0 opacity-75">Thank you for visiting {{ entry.store.store_name if entry.store else 'Anand Jewels' }}</p>
+    </header>
+    <section class="card-body p-4 p-md-5">
+      {% if submitted %}
+      <div class="text-center py-4">
+        <div class="display-3 text-success mb-3">?</div>
+        <h2 class="h4">Thank you, {{ entry.name }}!</h2>
+        <p class="text-muted mb-0">Your feedback has been submitted successfully.</p>
+      </div>
+      {% else %}
+      <p class="text-center text-muted">Hi {{ entry.name }}, please rate your recent store experience.</p>
+      {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+      <form method="post" action="/feedback/{{ feedback.token }}">
+        <div class="rating mb-2" aria-label="Rating from 1 to 5 stars">
+          {% for value in [5, 4, 3, 2, 1] %}
+          <input id="star{{ value }}" type="radio" name="rating" value="{{ value }}" required>
+          <label for="star{{ value }}" title="{{ value }} star{% if value != 1 %}s{% endif %}">?</label>
+          {% endfor %}
+        </div>
+        <div class="d-flex justify-content-between text-muted small mb-4"><span>Needs improvement</span><span>Excellent</span></div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="comments">Tell us more <span class="text-muted fw-normal">(optional)</span></label>
+          <textarea class="form-control" id="comments" name="comments" rows="4" maxlength="2000" placeholder="Share your experience with us..."></textarea>
+        </div>
+        <button class="btn btn-danger btn-lg w-100" type="submit">Submit Feedback</button>
+      </form>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
