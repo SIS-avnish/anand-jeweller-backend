@@ -698,6 +698,21 @@ async def feedback_form(request: Request, token: str, db: Session = Depends(get_
     })
 
 
+@router.get('/api/feedback/{token}', response_class=JSONResponse)
+async def get_feedback_details(token: str, db: Session = Depends(get_db)):
+    feedback = db.query(QueueFeedback).filter(QueueFeedback.token == token).first()
+    if not feedback:
+        raise HTTPException(status_code=404, detail='Feedback link is invalid')
+
+    entry = feedback.queue_entry
+    return {
+        'success': True,
+        'name': entry.name,
+        'mobile_number': entry.mobile_number,
+        'submitted': feedback.submitted_at is not None,
+    }
+
+
 @router.post('/api/feedback', response_class=JSONResponse)
 async def submit_feedback_api(payload: FeedbackSubmission, db: Session = Depends(get_db)):
     feedback = db.query(QueueFeedback).filter(QueueFeedback.token == payload.token).first()
