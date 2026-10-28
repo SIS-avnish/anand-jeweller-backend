@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -20,6 +21,17 @@ def parse_arguments():
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--delay", type=float, default=1.0)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Keep running and check for due messages at a fixed interval.",
+    )
+    parser.add_argument(
+        "--interval",
+        type=float,
+        default=60.0,
+        help="Seconds between checks in daemon mode. Default: 60.",
+    )
     return parser.parse_args()
 
 
@@ -116,8 +128,27 @@ def run_due_feedback(limit=100, delay=1.0, dry_run=False):
 
 if __name__ == "__main__":
     arguments = parse_arguments()
-    run_due_feedback(
-        limit=arguments.limit,
-        delay=max(arguments.delay, 0),
-        dry_run=arguments.dry_run,
-    )
+    if arguments.daemon and arguments.dry_run:
+        raise SystemExit("--daemon and --dry-run cannot be used together")
+
+    if arguments.daemon:
+        interval = max(arguments.interval, 5)
+        print({"status": "started", "mode": "daemon", "interval_seconds": interval})
+        while True:
+            started_at = time.monotonic()
+            try:
+                run_due_feedback(
+                    limit=arguments.limit,
+                    delay=max(arguments.delay, 0),
+                )
+            except Exception:
+                # Keep the PM2 process alive after a temporary database/provider error.
+                traceback.print_exc()
+            elapsed = time.monotonic() - started_at
+            time.sleep(max(interval - elapsed, 1))
+    else:
+        run_due_feedback(
+            limit=arguments.limit,
+            delay=max(arguments.delay, 0),
+            dry_run=arguments.dry_run,
+        )

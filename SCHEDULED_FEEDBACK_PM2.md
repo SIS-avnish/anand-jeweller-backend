@@ -1,4 +1,4 @@
-# Scheduled WhatsApp Feedback
+# Scheduled WhatsApp Feedback with PM2
 
 Queue registration creates one individual WhatsApp feedback job. Its due time is
 registration time plus `FEEDBACK_DELAY_HOURS`; user-facing times are shown in IST,
@@ -21,13 +21,24 @@ Test without sending:
 python scripts/send_scheduled_feedback.py --dry-run
 ```
 
-Run every minute on Linux/cPanel (server timezone does not matter):
+Start the continuous worker with PM2 (server timezone does not matter):
 
-```cron
-* * * * * cd /path/to/anand-jeweller-backend && /path/to/venv/bin/python scripts/send_scheduled_feedback.py --delay 1 >> logs/scheduled-feedback.log 2>&1
+```bash
+cd /path/to/anand-jeweller-backend
+pm2 start /path/to/venv/bin/python --name anand-feedback-worker -- scripts/send_scheduled_feedback.py --daemon --interval 60 --delay 1
+pm2 save
 ```
 
-Remove the old `send_daily_feedback.py` midnight cron before enabling this job.
+The worker checks every 60 seconds but sends only records whose `scheduled_at` is
+due. Remove the old `send_daily_feedback.py` cron before enabling this process.
+
+Useful commands:
+
+```bash
+pm2 status anand-feedback-worker
+pm2 logs anand-feedback-worker --lines 100
+pm2 restart anand-feedback-worker
+```
 
 Changing `FEEDBACK_DELAY_HOURS` affects new registrations after the backend is
 restarted. Existing records retain the date/time saved when they registered.
