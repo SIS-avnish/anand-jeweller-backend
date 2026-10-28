@@ -301,11 +301,21 @@ class QueueFeedback(Base):
     sent_to = Column(String(20), nullable=True)
     send_status = Column(String(20), nullable=False, default="pending")
     provider_response = Column(Text, nullable=True)
+    scheduled_at = Column(DateTime, nullable=True, index=True)
+    processing_at = Column(DateTime, nullable=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
     sent_at = Column(DateTime, nullable=True)
     submitted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     queue_entry = relationship("QueueEntry", back_populates="feedback")
+
+    @property
+    def scheduled_at_ist(self):
+        if self.scheduled_at:
+            from datetime import timedelta
+            return self.scheduled_at + timedelta(hours=5, minutes=30)
+        return None
 
     @property
     def submitted_at_ist(self):

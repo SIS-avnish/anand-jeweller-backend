@@ -47,6 +47,10 @@ KIT19_WHATSAPP_USERNAME = os.getenv("KIT19_WHATSAPP_USERNAME", "")
 FEEDBACK_BASE_URL = os.getenv("FEEDBACK_BASE_URL", "").rstrip("/")
 FEEDBACK_STATIC_URL = os.getenv("FEEDBACK_STATIC_URL", "").strip()
 FEEDBACK_IMMEDIATE_SEND = os.getenv("FEEDBACK_IMMEDIATE_SEND", "false").strip().lower() in ("1", "true", "yes", "on")
+try:
+    FEEDBACK_DELAY_HOURS = max(float(os.getenv("FEEDBACK_DELAY_HOURS", "5")), 0)
+except ValueError:
+    FEEDBACK_DELAY_HOURS = 5.0
 
 
 class FeedbackSubmission(BaseModel):
@@ -251,6 +255,9 @@ def _ensure_feedback(db: Session, entry: QueueEntry) -> QueueFeedback:
             queue_entry_id=entry.id,
             token=secrets.token_urlsafe(32),
             send_status="pending",
+            # QueueEntry.created_at and all persisted timestamps use UTC.
+            # Adding elapsed hours here produces the same instant as adding them in IST.
+            scheduled_at=datetime.utcnow() + timedelta(hours=FEEDBACK_DELAY_HOURS),
         )
         db.add(feedback)
         db.flush()
@@ -460,8 +467,13 @@ def register_visitor(
                 'Feedback link queued for WhatsApp delivery.'
             )
     else:
+        scheduled_at_ist = (
+            feedback.scheduled_at + timedelta(hours=5, minutes=30)
+            if feedback.scheduled_at else None
+        )
         request.session['queue_feedback_message'] = (
-            'Feedback link scheduled for the daily midnight batch.'
+            'Feedback link scheduled for WhatsApp at '
+            f'{scheduled_at_ist.strftime("%I:%M %p on %d %b %Y")} IST.'
         )
     request.session['queue_last_entry_id'] = entry.id
     return RedirectResponse(url='/queue/success', status_code=302)

@@ -333,6 +333,11 @@
                   <button type="submit" class="btn btn-outline-primary btn-sm mb-1"><i class="bi bi-whatsapp me-1"></i>{% if entry.feedback and entry.feedback.sent_at %}Retry Feedback{% else %}Send Feedback{% endif %}</button>
                 </form>
                 {% endif %}
+                {% if entry.feedback and entry.feedback.scheduled_at_ist %}
+                <div class="small text-muted mt-1">
+                  <i class="bi bi-clock me-1"></i>Scheduled: {{ entry.feedback.scheduled_at_ist.strftime('%d %b %Y %I:%M %p') }} IST
+                </div>
+                {% endif %}
                 <form method="post" action="/admin/queue/close/{{ entry.id }}" class="d-inline">
                   <input type="hidden" name="city" value="{{ selected_city }}">
                   <input type="hidden" name="store_id" value="{{ selected_store_id }}">
@@ -423,6 +428,11 @@
                   <input type="hidden" name="tab" value="closed">
                   <button type="submit" class="btn btn-primary btn-sm mb-1"><i class="bi bi-whatsapp me-1"></i>{% if entry.feedback and entry.feedback.sent_at %}Retry Feedback{% else %}Send Feedback{% endif %}</button>
                 </form>
+                {% endif %}
+                {% if entry.feedback and entry.feedback.scheduled_at_ist %}
+                <div class="small text-muted mt-1">
+                  <i class="bi bi-clock me-1"></i>Scheduled: {{ entry.feedback.scheduled_at_ist.strftime('%d %b %Y %I:%M %p') }} IST
+                </div>
                 {% endif %}
                 <span class="badge bg-secondary px-2 py-1 mb-1">Closed</span>
               </td>

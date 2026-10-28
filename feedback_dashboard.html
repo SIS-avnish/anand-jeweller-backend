@@ -141,7 +141,7 @@
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
-        <tr><th>Queue</th><th>Visitor</th><th>Store</th><th>Visit Date (IST)</th><th>Feedback</th><th>Submitted At (IST)</th><th>Status</th></tr>
+        <tr><th>Queue</th><th>Visitor</th><th>Store</th><th>Visit Date (IST)</th><th>Scheduled At (IST)</th><th>Feedback</th><th>Submitted At (IST)</th><th>Status</th></tr>
       </thead>
       <tbody>
         {% for entry in entries %}
@@ -150,6 +150,7 @@
           <td><div class="fw-semibold">{{ entry.name }}</div><small class="text-muted">{{ entry.mobile_number }}</small></td>
           <td><div>{{ entry.store.store_name if entry.store else '-' }}</div><small class="text-muted">{{ entry.city }}</small></td>
           <td>{{ entry.created_at_ist.strftime('%d %b %Y %I:%M %p') if entry.created_at_ist else '-' }}</td>
+          <td>{{ entry.feedback.scheduled_at_ist.strftime('%d %b %Y %I:%M %p') if entry.feedback and entry.feedback.scheduled_at_ist else '-' }}</td>
           <td>
             {% if entry.feedback and entry.feedback.submitted_at %}
               <div class="stars" aria-label="{{ entry.feedback.rating }} out of 5">{% for number in range(1, 6) %}{% if number <= entry.feedback.rating %}★{% else %}☆{% endif %}{% endfor %}</div>
@@ -171,7 +172,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted py-5">No queue entries found.</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-5">No queue entries found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
