@@ -900,6 +900,133 @@ async def feedback_dashboard(
     })
 
 
+@router.get('/admin/feedback/export')
+async def export_submitted_feedback_excel(
+    db: Session = Depends(get_db),
+    current_user: AdminUser = Depends(require_admin_auth),
+    city: Optional[str] = None,
+    store_id: Optional[str] = None,
+    search: Optional[str] = None,
+):
+    """Export all submitted Queue and CRE feedback visible to the admin."""
+    selected_store_id = _optional_int(store_id)
+    search_clean = (search or '').strip()
+    assigned_store = None
+
+    if current_user.role == UserRole.STORE_ADMIN.value:
+        if not current_user.store_id:
+            raise HTTPException(status_code=403, detail='Store admin is not linked to a store')
+        selected_store_id = current_user.store_id
+        assigned_store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        city = assigned_store.city if assigned_store else ''
+
+    queue_query = (
+        db.query(QueueFeedback)
+        .join(QueueEntry)
+        .filter(QueueFeedback.submitted_at.isnot(None))
+    )
+    if city:
+        queue_query = queue_query.filter(QueueEntry.city == city)
+    if selected_store_id is not None:
+        queue_query = queue_query.filter(QueueEntry.store_id == selected_store_id)
+    if search_clean:
+        term = f"%{search_clean}%"
+        queue_query = queue_query.filter(or_(
+            QueueEntry.name.ilike(term),
+            QueueEntry.mobile_number.ilike(term),
+            QueueEntry.token.ilike(term),
+        ))
+
+    external_query = db.query(ExternalFeedback).filter(
+        ExternalFeedback.source_system == 'cre',
+        ExternalFeedback.submitted_at.isnot(None),
+    )
+    if search_clean:
+        term = f"%{search_clean}%"
+        external_query = external_query.filter(or_(
+            ExternalFeedback.customer_name.ilike(term),
+            ExternalFeedback.mobile_number.ilike(term),
+            ExternalFeedback.visit_number.ilike(term),
+        ))
+    if current_user.role == UserRole.STORE_ADMIN.value and assigned_store:
+        external_query = external_query.filter(or_(
+            ExternalFeedback.external_store_id == current_user.store_id,
+            ExternalFeedback.store_name == assigned_store.store_name,
+        ))
+    elif selected_store_id is not None:
+        selected_store = db.query(Store).filter(Store.id == selected_store_id).first()
+        filters = [ExternalFeedback.external_store_id == selected_store_id]
+        if selected_store:
+            filters.append(ExternalFeedback.store_name == selected_store.store_name)
+        external_query = external_query.filter(or_(*filters))
+
+    rows = []
+    for feedback in queue_query.order_by(desc(QueueFeedback.submitted_at)).all():
+        entry = feedback.queue_entry
+        rows.append([
+            'Queue', entry.token or '', entry.name or '', entry.mobile_number or '',
+            entry.city or '', entry.store.store_name if entry.store else '',
+            feedback.rating or '', feedback.comments or '',
+            feedback.submitted_at_ist.strftime('%d %b %Y %I:%M %p') if feedback.submitted_at_ist else '',
+        ])
+    for feedback in external_query.order_by(desc(ExternalFeedback.submitted_at)).all():
+        rows.append([
+            'CRE', feedback.visit_number or feedback.external_customer_id or '',
+            feedback.customer_name or '', feedback.mobile_number or '', '',
+            feedback.store_name or '', feedback.rating or '', feedback.comments or '',
+            feedback.submitted_at_ist.strftime('%d %b %Y %I:%M %p') if feedback.submitted_at_ist else '',
+        ])
+
+    rows.sort(key=lambda row: row[8], reverse=True)
+    headers = [
+        'Source', 'Queue / Visit No.', 'Customer Name', 'Mobile Number', 'City',
+        'Store Name', 'Rating (Out of 5)', 'Customer Feedback', 'Submitted At (IST)',
+    ]
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    try:
+        import openpyxl
+        from openpyxl.styles import Alignment, Font, PatternFill
+
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = 'Submitted Feedback'
+        sheet.append(headers)
+        for row in rows:
+            sheet.append(row)
+        header_fill = PatternFill('solid', fgColor='9F1515')
+        for cell in sheet[1]:
+            cell.font = Font(color='FFFFFF', bold=True)
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+        sheet.freeze_panes = 'A2'
+        sheet.auto_filter.ref = sheet.dimensions
+        widths = [12, 20, 28, 18, 16, 28, 18, 55, 24]
+        for column, width in enumerate(widths, start=1):
+            sheet.column_dimensions[openpyxl.utils.get_column_letter(column)].width = width
+        for row in sheet.iter_rows(min_row=2):
+            row[7].alignment = Alignment(wrap_text=True, vertical='top')
+
+        stream = io.BytesIO()
+        workbook.save(stream)
+        return Response(
+            content=stream.getvalue(),
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename="Submitted_Customer_Feedback_{timestamp}.xlsx"'},
+        )
+    except ImportError:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        writer.writerows(rows)
+        content = '\ufeff'.encode('utf-8') + output.getvalue().encode('utf-8')
+        return Response(
+            content=content,
+            media_type='text/csv; charset=utf-8',
+            headers={'Content-Disposition': f'attachment; filename="Submitted_Customer_Feedback_{timestamp}.csv"'},
+        )
+
+
 @router.post('/admin/feedback/sync')
 async def sync_feedback_from_cre(
     request: Request,

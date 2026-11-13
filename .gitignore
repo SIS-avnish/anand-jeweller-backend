@@ -120,7 +120,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -211,8 +210,6 @@ desktop.ini
 config.ini
 secrets.json
 .secrets
-.env.local
-.env.production
 
 # SSL certificates
 *.pem
@@ -272,10 +269,6 @@ pids
 .yarn-integrity
 
 # dotenv environment variables file
-.env
-.env.test
-.env.production
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -303,3 +296,4 @@ pids
 *.history
 gold_rates.db
 temp_interactive_push.bat
+config.bat

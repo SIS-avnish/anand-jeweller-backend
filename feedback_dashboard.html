@@ -18,6 +18,9 @@
     <span class="badge bg-success fs-6 p-2">Submitted: {{ submitted_count }}</span>
     <span class="badge bg-warning text-dark fs-6 p-2">Pending: {{ pending_count }}</span>
     <span class="badge bg-info text-dark fs-6 p-2">CRE Submitted: {{ cre_feedback_count }}</span>
+    <a class="btn btn-success btn-sm fw-semibold" href="/admin/feedback/export?{{ {'city': selected_city, 'store_id': selected_store_id, 'search': search_query}|urlencode }}">
+      <i class="bi bi-file-earmark-excel me-1"></i>Download Submitted Excel
+    </a>
     <form method="post" action="/admin/feedback/sync">
       <button class="btn btn-light btn-sm fw-semibold" type="submit">
         <i class="bi bi-arrow-repeat me-1"></i>Sync CRE
